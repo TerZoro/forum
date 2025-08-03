@@ -1,84 +1,47 @@
 package main
 
 import (
-	"fmt"
-	"forum/internal/handlers"
+	"database/sql"
+	"forum/internal/presentation/api"
+	"forum/internal/presentation/ssr"
+	"forum/internal/repository/sqlite"
+	"forum/internal/service"
 	"log"
 	"net/http"
-	"strconv"
 )
 
-func Home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", http.MethodGet)
-		http.Error(w, "Method Not Alowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Write([]byte("Main page"))
-}
-
-func viewUserProfiles(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello new user"))
-}
-
-func postsHandler(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func postDetailHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
-	if err != nil || id < 1 {
-		http.NotFound(w, r)
-		return
-	}
-	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
-}
-
-func registerHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		handlers.ShowRegisterForm(w, r)
-	case http.MethodPost:
-		handlers.ProcessRegistration(w, r)
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		handlers.ShowLoginForm(w, r)
-	case http.MethodPost:
-		handlers.ProcessLogin(w, r)
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-}
-
 func main() {
+	db, err := sql.Open("sqlite3", "./forumdb.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	repo, err := sqlite.New(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// service with sqlite3 storage
+	s := service.New(repo)
+
+	// service with memory storage
+	// mem := memory.New(10)
+	// s := service.New(mem)
+
+	restAPI := api.New(s)
+	htmlRender := ssr.New(s)
+
 	mux := http.NewServeMux()
-	// intro page
-	mux.HandleFunc("/", Home)
+	mux.HandleFunc("GET /html/hello", htmlRender.Hello)
+	mux.HandleFunc("POST /html/signup", htmlRender.SignUp)
 
-	// user/auth forms
-	http.HandleFunc("/register", registerHandler) // GET + POST in one
-	http.HandleFunc("/login", loginHandler)       // GET + POST in one
+	mux.HandleFunc("POST /api/signup", restAPI.SignUp)
 
-	// after user/auth methods, allow user/profile
-	http.HandleFunc("/users/", viewUserProfiles) // catch-all under /users/
+	restServer := http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
 
-	// Posts
-	mux.HandleFunc("/posts", postsHandler)       // GET list, POST create
-	mux.HandleFunc("/posts/", postDetailHandler) // e.g. GET /posts/42, POST comments
-
-	log.Printf("Starting server on : 8080")
-	err := http.ListenAndServe(":8080", mux)
-	log.Fatal(err)
+	restServer.ListenAndServe()
 }
