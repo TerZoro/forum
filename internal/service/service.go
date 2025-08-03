@@ -20,6 +20,7 @@ func New(repo Repository) *Service {
 
 // data transfer object
 type SignUpRequest struct {
+	Email    string
 	Name     string
 	Password string
 }
@@ -29,7 +30,7 @@ type SignUpResponse struct {
 }
 
 func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse, error) {
-	a, err := account.New(req.Name, req.Password)
+	a, err := account.New(req.Email, req.Name, req.Password)
 	if err != nil {
 		return SignUpResponse{ID: 0}, err
 	}

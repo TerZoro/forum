@@ -31,7 +31,7 @@ func New(db *sql.DB) (*Repository, error) {
 func (r *Repository) SignUp(ctx context.Context, a account.Account) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO accounts (name, password) VALUES (?, ?)`,
-		a.Name(), a.Password())
+		a.Username, a.Password)
 	if err != nil {
 		return 0, err
 	}
