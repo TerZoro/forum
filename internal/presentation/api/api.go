@@ -22,7 +22,7 @@ type SignUpRequest struct {
 
 // view model
 type SignUpResponse struct {
-	ID int64 `json:"id"`
+	ID string `json:"id"`
 }
 
 func (rt *API) SignUp(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func (rt *API) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := rt.s.SignUp(r.Context(), service.SignUpRequest{
-		Name:     req.Name,
+		Username: req.Name,
 		Password: req.Password,
 	})
 	if err != nil {

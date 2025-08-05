@@ -36,7 +36,7 @@ func (rt *Renderer) SignUp(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	rt.s.SignUp(r.Context(), service.SignUpRequest{
-		Name:     r.Form.Get("name"),
+		Username: r.Form.Get("name"),
 		Password: r.Form.Get("password"),
 	})
 

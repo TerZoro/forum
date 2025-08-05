@@ -40,3 +40,8 @@ func New(email, name, password string) (Account, error) {
 		CreateAt: time.Now(),
 	}, nil
 }
+
+func (a *Account) CheckPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
+	return err == nil
+}
