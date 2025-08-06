@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"forum/internal/domain/account"
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
+	"forum/internal/domain/session"
 )
 
 type Repository interface {
@@ -22,6 +24,10 @@ type Repository interface {
 
 	CreateComment(ctx context.Context, c comment.Comment) error
 	GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error)
+
+	CreateSession(ctx context.Context, s session.Session) error
+	GetSession(ctx context.Context, sessionID string) (session.Session, error)
+	DeleteSession(ctx context.Context, sessionID string) error
 }
 
 type Service struct {
@@ -32,13 +38,11 @@ func New(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// data transfer object
 type SignUpRequest struct {
 	Email    string
 	Username string
 	Password string
 }
-
 type SignUpResponse struct {
 	ID string
 }
@@ -63,9 +67,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	ID       string
-	Email    string
-	Username string
+	ID        string
+	Email     string
+	Username  string
+	SessionID string
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
@@ -78,7 +83,19 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		return LoginResponse{}, errors.New("invalid credentials")
 	}
 
-	return LoginResponse{ID: a.ID, Email: a.Email, Username: a.Username}, nil
+	// Create session (24 hours)
+	sess := session.New(a.ID, 24*time.Hour)
+	err = s.repo.CreateSession(ctx, sess)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+
+	return LoginResponse{
+		ID:        a.ID,
+		Email:     a.Email,
+		Username:  a.Username,
+		SessionID: sess.GetID(),
+	}, nil
 }
 
 type CreatePostRequest struct {
@@ -138,4 +155,32 @@ func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, u
 
 func (s *Service) GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error) {
 	return s.repo.GetCommentsByPost(ctx, postID)
+}
+
+func (s *Service) GetUserFromSession(ctx context.Context, sessionID string) (account.Account, error) {
+	sess, err := s.repo.GetSession(ctx, sessionID)
+	if err != nil {
+		return account.Account{}, err
+	}
+
+	if sess.IsExpired() {
+		s.repo.DeleteSession(ctx, sessionID)
+		return account.Account{}, errors.New("session expired")
+	}
+
+	a, err := s.repo.GetAccountByID(ctx, sess.GetUserID())
+	if err != nil {
+		return account.Account{}, err
+	}
+
+	return a, nil
+}
+
+func (s *Service) Logout(ctx context.Context, sessionID string) error {
+	return s.repo.DeleteSession(ctx, sessionID)
+}
+
+// Helper method to get account by ID
+func (s *Service) GetAccountByID(ctx context.Context, id string) (account.Account, error) {
+	return s.repo.GetAccountByID(ctx, id)
 }

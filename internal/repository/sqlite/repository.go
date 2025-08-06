@@ -6,6 +6,7 @@ import (
 	"forum/internal/domain/account"
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
+	"forum/internal/domain/session"
 )
 
 type Repository struct {
@@ -91,6 +92,18 @@ func New(db *sql.DB) (*Repository, error) {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (comment_id, user_id),
                 FOREIGN KEY (comment_id) REFERENCES comments (id),
+                FOREIGN KEY (user_id) REFERENCES accounts (id)
+        );`)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.Exec(
+		`CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                expires_at DATETIME NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES accounts (id)
         );`)
 	if err != nil {
@@ -261,4 +274,30 @@ func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]co
 	}
 
 	return comments, nil
+}
+
+// Session methods
+
+func (r *Repository) CreateSession(ctx context.Context, s session.Session) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES
+                (?, ?, ?, ?)`,
+		s.GetID(), s.GetUserID(), s.GetExpiresAt(), s.GetCreatedAt())
+
+	return err
+}
+
+func (r *Repository) GetSession(ctx context.Context, sessionID string) (session.Session, error) {
+	var s session.Session
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, user_id, expires_at, created_at FROM sessions WHERE id = ?`,
+		sessionID).Scan(&s.ID, &s.UserID, &s.ExpiresAt, &s.CreatedAt)
+
+	return s, err
+}
+
+func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
+
+	return err
 }
