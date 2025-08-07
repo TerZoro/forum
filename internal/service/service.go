@@ -21,9 +21,14 @@ type Repository interface {
 	CreatePost(ctx context.Context, p post.Post) error
 	GetPosts(ctx context.Context) ([]post.Post, error)
 	GetPostByID(ctx context.Context, postID string) (post.Post, error)
+	LikePost(ctx context.Context, postID, userID string) error
+	DislikePost(ctx context.Context, postID, userID string) error
 
 	CreateComment(ctx context.Context, c comment.Comment) error
+	GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error)
 	GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error)
+	LikeComment(ctx context.Context, commentID, userID string) error
+	DislikeComment(ctx context.Context, commentID, userID string) error
 
 	CreateSession(ctx context.Context, s session.Session) error
 	GetSession(ctx context.Context, sessionID string) (session.Session, error)
@@ -130,6 +135,14 @@ func (s *Service) GetPostByID(ctx context.Context, postID string) (post.Post, er
 	return s.repo.GetPostByID(ctx, postID)
 }
 
+func (s *Service) LikePost(ctx context.Context, postID, userID string) error {
+	return s.repo.LikePost(ctx, postID, userID)
+}
+
+func (s *Service) DislikePost(ctx context.Context, postID, userID string) error {
+	return s.repo.DislikePost(ctx, postID, userID)
+}
+
 type CreateCommentRequest struct {
 	Content string
 	PostID  string
@@ -153,8 +166,20 @@ func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, u
 	return CreateCommentResponse{ID: c.ID}, nil
 }
 
+func (s *Service) GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error) {
+	return s.repo.GetCommentByID(ctx, commentID)
+}
+
 func (s *Service) GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error) {
 	return s.repo.GetCommentsByPost(ctx, postID)
+}
+
+func (s *Service) LikeComment(ctx context.Context, commentID, userID string) error {
+	return s.repo.LikeComment(ctx, commentID, userID)
+}
+
+func (s *Service) DislikeComment(ctx context.Context, commentID, userID string) error {
+	return s.repo.DislikeComment(ctx, commentID, userID)
 }
 
 func (s *Service) GetUserFromSession(ctx context.Context, sessionID string) (account.Account, error) {
@@ -180,7 +205,6 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.repo.DeleteSession(ctx, sessionID)
 }
 
-// Helper method to get account by ID
 func (s *Service) GetAccountByID(ctx context.Context, id string) (account.Account, error) {
 	return s.repo.GetAccountByID(ctx, id)
 }

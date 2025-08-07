@@ -191,7 +191,6 @@ func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
 			return nil, err
 		}
 
-		// Get categories for this post
 		categories, err := r.getPostCategories(ctx, p.ID)
 		if err != nil {
 			return nil, err
@@ -213,7 +212,6 @@ func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post,
 		return post.Post{}, err
 	}
 
-	// Get categories for this post
 	categories, err := r.getPostCategories(ctx, p.ID)
 	if err != nil {
 		return post.Post{}, err
@@ -221,6 +219,133 @@ func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post,
 	p.Categories = categories
 
 	return p, nil
+}
+
+func (r *Repository) LikePost(ctx context.Context, postID, userID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var existingLike *bool
+	err = tx.QueryRowContext(ctx,
+		`SELECT is_like FROM post_likes WHERE post_id = ? AND user_id = ?`,
+		postID, userID).Scan(&existingLike)
+
+	if err == sql.ErrNoRows {
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO post_likes (post_id, user_id, is_like) VALUES (?, ?, ?)`,
+			postID, userID, true)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx,
+			`UPDATE posts SET likes = likes + 1 WHERE id = ?`,
+			postID)
+		if err != nil {
+			return err
+		}
+	} else if err == nil && existingLike != nil {
+		if *existingLike {
+			// User already liked, remove like
+			_, err = tx.ExecContext(ctx,
+				`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
+				postID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE posts SET likes = likes - 1 WHERE id = ?`,
+				postID)
+			if err != nil {
+				return err
+			}
+		} else {
+			// User disliked, change to like
+			_, err = tx.ExecContext(ctx,
+				`UPDATE post_likes SET is_like = ? WHERE post_id = ? AND user_id = ?`,
+				true, postID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE posts SET likes = likes + 1, dislikes = dislikes - 1 WHERE id = ?`,
+				postID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *Repository) DislikePost(ctx context.Context, postID, userID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var existingLike *bool
+	err = tx.QueryRowContext(ctx,
+		`SELECT is_like from post_likes WHERE post_id = ? AND user_id = ?`,
+		postID, userID).Scan(&existingLike)
+
+	if err == sql.ErrNoRows {
+		// User hasn't liked/disliked this post yet
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO post_likes (post_id, user_id, is_like) VALUES (?, ?, ?)`,
+			postID, userID, false) // false = dislike
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx,
+			`UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?`,
+			postID)
+		if err != nil {
+			return err
+		}
+	} else if err == nil && existingLike != nil {
+		if !*existingLike {
+			// User already disliked, remove dislike
+			_, err = tx.ExecContext(ctx,
+				`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
+				postID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE posts SET dislikes = dislikes - 1 WHERE id = ?`,
+				postID)
+			if err != nil {
+				return err
+			}
+		} else {
+			// User liked, change to dislike
+			_, err = tx.ExecContext(ctx,
+				`UPDATE post_likes SET is_like = ? WHERE post_id = ? AND user_id = ?`,
+				false, postID, userID) // false = dislike
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE posts SET likes = likes - 1, dislikes = dislikes + 1 WHERE id = ?`,
+				postID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]string, error) {
@@ -252,6 +377,18 @@ func (r *Repository) CreateComment(ctx context.Context, c comment.Comment) error
 	return err
 }
 
+func (r *Repository) GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error) {
+	var c comment.Comment
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, content, post_id, author_id, likes, dislikes, created_at, updated_at 
+		 FROM comments WHERE id = ?`, commentID).Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt)
+	if err != nil {
+		return comment.Comment{}, err
+	}
+
+	return c, nil
+}
+
 func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, content, post_id, author_id, likes, dislikes, created_at, updated_at 
@@ -274,6 +411,133 @@ func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]co
 	}
 
 	return comments, nil
+}
+
+func (r *Repository) LikeComment(ctx context.Context, commentID, userID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var existingLike *bool
+	err = tx.QueryRowContext(ctx,
+		`SELECT is_like FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+		commentID, userID).Scan(&existingLike)
+
+	if err == sql.ErrNoRows {
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO comment_likes (comment_id, user_id, is_like) VALUES (?, ?, ?)`,
+			commentID, userID, true)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx,
+			`UPDATE comments SET likes = likes + 1 WHERE id = ?`,
+			commentID)
+		if err != nil {
+			return err
+		}
+	} else if err == nil && existingLike != nil {
+		if *existingLike {
+			// User already liked, remove like
+			_, err = tx.ExecContext(ctx,
+				`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+				commentID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comments SET likes = likes - 1 WHERE id = ?`,
+				commentID)
+			if err != nil {
+				return err
+			}
+		} else {
+			// User disliked, change to like
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comment_likes SET is_like = ? WHERE comment_id = ? AND user_id = ?`,
+				true, commentID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comments SET likes = likes + 1, dislikes = dislikes - 1 WHERE id = ?`,
+				commentID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *Repository) DislikeComment(ctx context.Context, commentID, userID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var existingLike *bool
+	err = tx.QueryRowContext(ctx,
+		`SELECT is_like from comment_likes WHERE comment_id = ? AND user_id = ?`,
+		commentID, userID).Scan(&existingLike)
+
+	if err == sql.ErrNoRows {
+		// User hasn't liked/disliked this post yet
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO comment_likes (comment_id, user_id, is_like) VALUES (?, ?, ?)`,
+			commentID, userID, false) // false = dislike
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx,
+			`UPDATE comments SET dislikes = dislikes + 1 WHERE id = ?`,
+			commentID)
+		if err != nil {
+			return err
+		}
+	} else if err == nil && existingLike != nil {
+		if !*existingLike {
+			// User already disliked, remove dislike
+			_, err = tx.ExecContext(ctx,
+				`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+				commentID, userID)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comments SET dislikes = dislikes - 1 WHERE id = ?`,
+				commentID)
+			if err != nil {
+				return err
+			}
+		} else {
+			// User liked, change to dislike
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comment_likes SET is_like = ? WHERE comment_id = ? AND user_id = ?`,
+				false, commentID, userID) // false = dislike
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`UPDATE comments SET likes = likes - 1, dislikes = dislikes + 1 WHERE id = ?`,
+				commentID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 // Session methods
