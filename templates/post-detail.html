@@ -1,0 +1,96 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="post-detail">
+    {{if .Post}}
+        <article class="post">
+            <h1 class="post-title">{{.Post.Title}}</h1>
+            <div class="post-meta">
+                <span>By {{.Post.AuthorID}}</span>
+                <span>•</span>
+                <span>{{.Post.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
+                {{if .Post.Categories}}
+                    <span>•</span>
+                    <span>
+                        {{range .Post.Categories}}
+                            <span style="background: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; margin-right: 0.5rem;">{{.}}</span>
+                        {{end}}
+                    </span>
+                {{end}}
+            </div>
+            
+            <div class="post-content">
+                {{.Post.Content}}
+            </div>
+            
+            <div class="post-actions">
+                <form method="POST" action="/posts/{{.Post.ID}}/like" style="display: inline;">
+                    <button type="submit" class="btn">👍 {{.Post.Likes}}</button>
+                </form>
+                <form method="POST" action="/posts/{{.Post.ID}}/dislike" style="display: inline;">
+                    <button type="submit" class="btn">👎 {{.Post.Dislikes}}</button>
+                </form>
+                {{if and .User (eq .Post.AuthorID .User.ID)}}
+                    <form method="POST" action="/posts/{{.Post.ID}}/delete" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this post?')">
+                        <button type="submit" class="btn btn-danger">Delete Post</button>
+                    </form>
+                {{end}}
+            </div>
+        </article>
+        
+        <div class="comments-section" style="margin-top: 2rem;">
+            <h2>Comments ({{len .Comments}})</h2>
+            
+            {{if .User}}
+                <form method="POST" action="/posts/{{.Post.ID}}/comments" style="margin-bottom: 2rem;">
+                    <div class="form-group">
+                        <label for="content">Add a comment:</label>
+                        <textarea id="content" name="content" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn">Post Comment</button>
+                </form>
+            {{else}}
+                <p><a href="/login">Login</a> to add a comment.</p>
+            {{end}}
+            
+            <div class="comments">
+                {{if .Comments}}
+                    {{range .Comments}}
+                        <div class="comment">
+                            <div class="comment-meta">
+                                <strong>{{.AuthorID}}</strong>
+                                <span>•</span>
+                                <span>{{.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
+                            </div>
+                            <div class="comment-content">
+                                {{.Content}}
+                            </div>
+                            <div class="comment-actions">
+                                <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/like" style="display: inline;">
+                                    <button type="submit" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">👍 {{.Likes}}</button>
+                                </form>
+                                <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/dislike" style="display: inline;">
+                                    <button type="submit" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">👎 {{.Dislikes}}</button>
+                                </form>
+                                {{if and $.User (eq .AuthorID $.User.ID)}}
+                                    <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/delete" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this comment?')">
+                                        <button type="submit" class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                                    </form>
+                                {{end}}
+                            </div>
+                        </div>
+                    {{end}}
+                {{else}}
+                    <p>No comments yet. Be the first to comment!</p>
+                {{end}}
+            </div>
+        </div>
+    {{else}}
+        <div class="post">
+            <h1>Post Not Found</h1>
+            <p>The post you're looking for doesn't exist.</p>
+            <a href="/" class="btn">Go Home</a>
+        </div>
+    {{end}}
+</div>
+{{end}} 

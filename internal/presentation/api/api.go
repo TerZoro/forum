@@ -163,6 +163,39 @@ func (rt *API) CreatePost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (rt *API) DeletePost(w http.ResponseWriter, r *http.Request) {
+	postID, err := rt.getIDFromPath(r, 3)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user := rt.getUserFromSession(r)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	post, err := rt.s.GetPostByID(r.Context(), postID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if post.AuthorID != user.ID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	err = rt.s.DeletePost(r.Context(), postID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (rt *API) GetPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := rt.s.GetPosts(r.Context())
 	if err != nil {
@@ -267,6 +300,39 @@ func (rt *API) CreateComment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(CreateCommentResponse{
 		ID: resp.ID,
 	})
+}
+
+func (rt *API) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	commentID, err := rt.getIDFromPath(r, 5)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user := rt.getUserFromSession(r)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	comment, err := rt.s.GetCommentByID(r.Context(), commentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if comment.AuthorID != user.ID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	err = rt.s.DeleteComment(r.Context(), commentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (rt *API) GetComments(w http.ResponseWriter, r *http.Request) {

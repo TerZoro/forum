@@ -174,6 +174,46 @@ func (r *Repository) CreatePost(ctx context.Context, p post.Post) error {
 	return tx.Commit()
 }
 
+func (r *Repository) DeletePost(ctx context.Context, postID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = r.GetPostByID(ctx, postID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)`, postID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM post_likes WHERE post_id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM post_categories WHERE post_id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM comments WHERE post_id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM posts WHERE id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
@@ -387,6 +427,31 @@ func (r *Repository) GetCommentByID(ctx context.Context, commentID string) (comm
 	}
 
 	return c, nil
+}
+
+func (r *Repository) DeleteComment(ctx context.Context, commentID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = r.GetCommentByID(ctx, commentID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM comment_likes WHERE comment_id = ?`, commentID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM comments WHERE id = ?`, commentID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error) {

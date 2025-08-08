@@ -1,0 +1,62 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="home">
+    <h1>Welcome to the Forum</h1>
+    
+    {{if .User}}
+        <div style="margin-bottom: 2rem;">
+            <a href="/posts/new" class="btn">Create New Post</a>
+        </div>
+    {{end}}
+    
+    <div class="posts">
+        {{if .Posts}}
+            {{range .Posts}}
+                <article class="post">
+                    <h2 class="post-title">
+                        <a href="/posts/{{.ID}}" style="color: inherit; text-decoration: none;">
+                            {{.Title}}
+                        </a>
+                    </h2>
+                    <div class="post-meta">
+                        <span>By {{.AuthorID}}</span>
+                        <span>•</span>
+                        <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                        <span>•</span>
+                        <span>{{len .Categories}} categories</span>
+                        <span>•</span>
+                        <span>👍 {{.Likes}} 👎 {{.Dislikes}}</span>
+                    </div>
+                    <div class="post-content">
+                        {{if gt (len .Content) 200}}
+                            {{slice .Content 0 200}}...
+                        {{else}}
+                            {{.Content}}
+                        {{end}}
+                    </div>
+                    <div class="post-actions">
+                        <a href="/posts/{{.ID}}" class="btn">Read More</a>
+                        {{if .Categories}}
+                            <div>
+                                {{range .Categories}}
+                                    <span style="background: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; margin-right: 0.5rem;">{{.}}</span>
+                                {{end}}
+                            </div>
+                        {{end}}
+                    </div>
+                </article>
+            {{end}}
+        {{else}}
+            <div class="post">
+                <p>No posts yet. Be the first to create one!</p>
+                {{if .User}}
+                    <a href="/posts/new" class="btn">Create First Post</a>
+                {{else}}
+                    <a href="/signup" class="btn">Sign Up to Create Posts</a>
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+</div>
+{{end}} 

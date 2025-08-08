@@ -42,12 +42,14 @@ func main() {
 	// Posts
 	mux.HandleFunc("POST /api/posts", restAPI.CreatePost)
 	mux.HandleFunc("GET /api/posts", restAPI.GetPosts)
+	mux.HandleFunc("DELETE /api/posts/{id}", restAPI.DeletePost)
 	mux.HandleFunc("GET /api/posts/{id}", restAPI.GetPostByID)
 	mux.HandleFunc("POST /api/posts/{id}/like", restAPI.LikePost)
 	mux.HandleFunc("POST /api/posts/{id}/dislike", restAPI.DislikePost)
 
 	// Comments
 	mux.HandleFunc("POST /api/posts/{id}/comments", restAPI.CreateComment)
+	mux.HandleFunc("DELETE /api/posts/{id}/comments/{commentId}", restAPI.DeleteComment)
 	mux.HandleFunc("GET /api/posts/{id}/comments", restAPI.GetComments)
 	mux.HandleFunc("GET /api/posts/{id}/comments/{commentId}", restAPI.GetCommentByID)
 	mux.HandleFunc("POST /api/posts/{id}/comments/{commentId}/like", restAPI.LikeComment)

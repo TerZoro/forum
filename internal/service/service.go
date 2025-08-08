@@ -19,12 +19,14 @@ type Repository interface {
 	GetAccountByUsername(ctx context.Context, username string) (account.Account, error)
 
 	CreatePost(ctx context.Context, p post.Post) error
+	DeletePost(ctx context.Context, postID string) error
 	GetPosts(ctx context.Context) ([]post.Post, error)
 	GetPostByID(ctx context.Context, postID string) (post.Post, error)
 	LikePost(ctx context.Context, postID, userID string) error
 	DislikePost(ctx context.Context, postID, userID string) error
 
 	CreateComment(ctx context.Context, c comment.Comment) error
+	DeleteComment(ctx context.Context, commentID string) error
 	GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error)
 	GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error)
 	LikeComment(ctx context.Context, commentID, userID string) error
@@ -127,6 +129,10 @@ func (s *Service) CreatePost(ctx context.Context, req CreatePostRequest, userID 
 	return CreatePostResponse{ID: p.ID}, nil
 }
 
+func (s *Service) DeletePost(ctx context.Context, postID string) error {
+	return s.repo.DeletePost(ctx, postID)
+}
+
 func (s *Service) GetPosts(ctx context.Context) ([]post.Post, error) {
 	return s.repo.GetPosts(ctx)
 }
@@ -164,6 +170,10 @@ func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, u
 	}
 
 	return CreateCommentResponse{ID: c.ID}, nil
+}
+
+func (s *Service) DeleteComment(ctx context.Context, commentID string) error {
+	return s.repo.DeleteComment(ctx, commentID)
 }
 
 func (s *Service) GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error) {
