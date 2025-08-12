@@ -7,7 +7,6 @@ import (
 	"forum/internal/service"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type API struct {
@@ -90,7 +89,8 @@ func (rt *API) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    resp.SessionID,
 		Path:     "/",
 		HttpOnly: true,
-		Expires:  time.Now().Add(24 * time.Hour),
+		MaxAge:   86400, // 24 hours in seconds (24 * 60 * 60)
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -105,7 +105,8 @@ func (rt *API) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Expires:  time.Now().Add(-1 * time.Hour),
+		MaxAge:   -1,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	w.WriteHeader(http.StatusOK)

@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"forum/internal/presentation/api"
+	"forum/internal/presentation/ssr"
 	"forum/internal/repository/sqlite"
 	"forum/internal/service"
+	"html/template"
 	"log"
 	"net/http"
 
@@ -30,10 +32,31 @@ func main() {
 	// mem := memory.New(10)
 	// s := service.New(mem)
 
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+
 	restAPI := api.New(s)
-	//htmlRender := ssr.New(s)
+	htmlRender := ssr.New(s, tmpl)
 
 	mux := http.NewServeMux()
+
+	// SSR
+	mux.HandleFunc("GET /", htmlRender.Home)
+	mux.HandleFunc("GET /login", htmlRender.Login)
+	mux.HandleFunc("POST /login", htmlRender.Login)
+	mux.HandleFunc("GET /logout", htmlRender.Logout)
+	mux.HandleFunc("GET /signup", htmlRender.SignUp)
+	mux.HandleFunc("POST /signup", htmlRender.SignUp)
+	mux.HandleFunc("GET /posts/new", htmlRender.NewPost)
+	mux.HandleFunc("POST /posts", htmlRender.NewPost)
+	mux.HandleFunc("GET /posts/{id}", htmlRender.PostDetail)
+	mux.HandleFunc("POST /posts/{id}/like", htmlRender.LikePost)
+	mux.HandleFunc("POST /posts/{id}/dislike", htmlRender.DislikePost)
+	mux.HandleFunc("POST /posts/{id}/delete", htmlRender.DeletePost)
+	mux.HandleFunc("POST /posts/{id}/comments", htmlRender.CreateComment)
+	mux.HandleFunc("POST /posts/{id}/comments/{commentId}/like", htmlRender.LikeComment)
+	mux.HandleFunc("POST /posts/{id}/comments/{commentId}/dislike", htmlRender.DislikeComment)
+	mux.HandleFunc("POST /posts/{id}/comments/{commentId}/delete", htmlRender.DeleteComment)
+
 	// Authentication
 	mux.HandleFunc("POST /api/signup", restAPI.SignUp)
 	mux.HandleFunc("POST /api/login", restAPI.Login)
@@ -60,5 +83,5 @@ func main() {
 		Handler: mux,
 	}
 
-	restServer.ListenAndServe()
+	log.Fatal(restServer.ListenAndServe())
 }

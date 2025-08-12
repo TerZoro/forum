@@ -1,36 +1,146 @@
-{{template "base" .}}
-
-{{define "content"}}
-<div class="signup" style="max-width: 400px; margin: 0 auto;">
-    <h1>Sign Up</h1>
-    
-    {{if .Error}}
-        <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
-            {{.Error}}
-        </div>
-    {{end}}
-    
-    <form method="POST" action="/signup">
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
-        </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Forum</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-        </div>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+        }
         
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-        </div>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
         
-        <button type="submit" class="btn" style="width: 100%;">Sign Up</button>
-    </form>
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem 0;
+        }
+        
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1rem;
+        }
+        
+        .nav a:hover {
+            color: #ddd;
+        }
+        
+        .main {
+            padding: 2rem 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div>
+                    <a href="/">Forum</a>
+                </div>
+                <div>
+                    <a href="/login">Login</a>
+                    <a href="/signup">Sign Up</a>
+                </div>
+            </nav>
+        </div>
+    </header>
     
-    <div style="margin-top: 1rem; text-align: center;">
-        <p>Already have an account? <a href="/login">Login here</a></p>
-    </div>
-</div>
-{{end}} 
+    <main class="main">
+        <div class="container">
+            <div class="signup" style="max-width: 400px; margin: 0 auto;">
+                <h1>Sign Up</h1>
+                
+                {{if .Error}}
+                    <div class="error">
+                        {{.Error}}
+                    </div>
+                {{end}}
+                
+                <form method="POST" action="/signup">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="width: 100%;">Sign Up</button>
+                </form>
+                
+                <div style="margin-top: 1rem; text-align: center;">
+                    <p>Already have an account? <a href="/login">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html> 
