@@ -38,7 +38,6 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			user = &u
 		} else {
-			// invalid session: clear cookie and continue as guest
 			http.SetCookie(w, &http.Cookie{
 				Name:     "session_id",
 				Value:    "",
@@ -354,9 +353,13 @@ func (rt *Renderer) currentUser(w http.ResponseWriter, r *http.Request) *account
 	}
 	u, err := rt.s.GetUserFromSession(r.Context(), c.Value)
 	if err != nil {
-		// clear invalid cookie
 		http.SetCookie(w, &http.Cookie{
-			Name: "session_id", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+			Name:     "session_id",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 		})
 		return nil
 	}

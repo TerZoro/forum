@@ -11,6 +11,7 @@ import (
 
 type Repository struct {
 	db *sql.DB
+	mu *DatabaseMutex
 }
 
 func New(db *sql.DB) (*Repository, error) {
@@ -110,11 +111,17 @@ func New(db *sql.DB) (*Repository, error) {
 		return nil, err
 	}
 
-	return &Repository{db: db}, nil
+	return &Repository{
+		db: db,
+		mu: NewDatabaseMutex(),
+	}, nil
 }
 
 // Account methods
 func (r *Repository) SignUp(ctx context.Context, a account.Account) (string, error) {
+	r.mu.LockForWrite("account_write")
+	defer r.mu.UnlockForWrite("account_write")
+
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO accounts (id, email, username, password, created_at)
                  VALUES (?, ?, ?, ?, ?)`,
@@ -123,6 +130,9 @@ func (r *Repository) SignUp(ctx context.Context, a account.Account) (string, err
 }
 
 func (r *Repository) GetAccountByEmail(ctx context.Context, email string) (account.Account, error) {
+	r.mu.LockForRead("account_read")
+	defer r.mu.UnlockForRead("account_read")
+
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, email, username, password, created_at FROM accounts WHERE email = ?`,
@@ -131,6 +141,9 @@ func (r *Repository) GetAccountByEmail(ctx context.Context, email string) (accou
 }
 
 func (r *Repository) GetAccountByID(ctx context.Context, id string) (account.Account, error) {
+	r.mu.LockForRead("account_read")
+	defer r.mu.UnlockForRead("account_read")
+
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, email, username, password, created_at FROM accounts WHERE id = ?`,
@@ -139,6 +152,9 @@ func (r *Repository) GetAccountByID(ctx context.Context, id string) (account.Acc
 }
 
 func (r *Repository) GetAccountByUsername(ctx context.Context, username string) (account.Account, error) {
+	r.mu.LockForRead("account_read")
+	defer r.mu.UnlockForRead("account_read")
+
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, email, username, password, created_at FROM accounts WHERE username = ?`,
@@ -148,6 +164,9 @@ func (r *Repository) GetAccountByUsername(ctx context.Context, username string) 
 
 // Post methods
 func (r *Repository) CreatePost(ctx context.Context, p post.Post) error {
+	r.mu.LockForWrite("post_write")
+	defer r.mu.UnlockForWrite("post_write")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -175,6 +194,9 @@ func (r *Repository) CreatePost(ctx context.Context, p post.Post) error {
 }
 
 func (r *Repository) DeletePost(ctx context.Context, postID string) error {
+	r.mu.LockForWrite("global_write")
+	defer r.mu.UnlockForWrite("global_write")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -215,6 +237,9 @@ func (r *Repository) DeletePost(ctx context.Context, postID string) error {
 }
 
 func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
 		 FROM posts p ORDER BY p.created_at DESC`)
@@ -244,6 +269,9 @@ func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
 }
 
 func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
 	var p post.Post
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, title, content, author_id, likes, dislikes, created_at, updated_at 
@@ -262,6 +290,9 @@ func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post,
 }
 
 func (r *Repository) LikePost(ctx context.Context, postID, userID string) error {
+	r.mu.LockForWrite("like_operation")
+	defer r.mu.UnlockForWrite("like_operation")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -325,6 +356,9 @@ func (r *Repository) LikePost(ctx context.Context, postID, userID string) error 
 }
 
 func (r *Repository) DislikePost(ctx context.Context, postID, userID string) error {
+	r.mu.LockForWrite("like_operation")
+	defer r.mu.UnlockForWrite("like_operation")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -389,6 +423,9 @@ func (r *Repository) DislikePost(ctx context.Context, postID, userID string) err
 }
 
 func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]string, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT category FROM post_categories WHERE post_id = ?`, postID)
 	if err != nil {
@@ -411,6 +448,9 @@ func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]st
 
 // Comment methods
 func (r *Repository) CreateComment(ctx context.Context, c comment.Comment) error {
+	r.mu.LockForWrite("comment_write")
+	defer r.mu.UnlockForWrite("comment_write")
+
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO comments (id, content, post_id, author_id, likes, dislikes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.ID, c.Content, c.PostID, c.AuthorID, c.Likes, c.Dislikes, c.CreatedAt, c.UpdatedAt)
@@ -418,6 +458,9 @@ func (r *Repository) CreateComment(ctx context.Context, c comment.Comment) error
 }
 
 func (r *Repository) GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error) {
+	r.mu.LockForRead("comment_read")
+	defer r.mu.UnlockForRead("comment_read")
+
 	var c comment.Comment
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, content, post_id, author_id, likes, dislikes, created_at, updated_at 
@@ -430,6 +473,9 @@ func (r *Repository) GetCommentByID(ctx context.Context, commentID string) (comm
 }
 
 func (r *Repository) DeleteComment(ctx context.Context, commentID string) error {
+	r.mu.LockForWrite("comment_write")
+	defer r.mu.UnlockForWrite("comment_write")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -455,6 +501,9 @@ func (r *Repository) DeleteComment(ctx context.Context, commentID string) error 
 }
 
 func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error) {
+	r.mu.LockForRead("comment_read")
+	defer r.mu.UnlockForRead("comment_read")
+
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, content, post_id, author_id, likes, dislikes, created_at, updated_at 
 		 FROM comments 
@@ -479,6 +528,9 @@ func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]co
 }
 
 func (r *Repository) LikeComment(ctx context.Context, commentID, userID string) error {
+	r.mu.LockForWrite("like_operation")
+	defer r.mu.UnlockForWrite("like_operation")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -542,6 +594,9 @@ func (r *Repository) LikeComment(ctx context.Context, commentID, userID string) 
 }
 
 func (r *Repository) DislikeComment(ctx context.Context, commentID, userID string) error {
+	r.mu.LockForWrite("like_operation")
+	defer r.mu.UnlockForWrite("like_operation")
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -608,6 +663,9 @@ func (r *Repository) DislikeComment(ctx context.Context, commentID, userID strin
 // Session methods
 
 func (r *Repository) CreateSession(ctx context.Context, s session.Session) error {
+	r.mu.LockForWrite("session_write")
+	defer r.mu.UnlockForWrite("session_write")
+
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES
                 (?, ?, ?, ?)`,
@@ -617,6 +675,9 @@ func (r *Repository) CreateSession(ctx context.Context, s session.Session) error
 }
 
 func (r *Repository) GetSession(ctx context.Context, sessionID string) (session.Session, error) {
+	r.mu.LockForRead("session_read")
+	defer r.mu.UnlockForRead("session_read")
+
 	var s session.Session
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, expires_at, created_at FROM sessions WHERE id = ?`,
@@ -626,6 +687,9 @@ func (r *Repository) GetSession(ctx context.Context, sessionID string) (session.
 }
 
 func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error {
+	r.mu.LockForWrite("session_write")
+	defer r.mu.UnlockForWrite("session_write")
+
 	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
 
 	return err

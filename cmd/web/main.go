@@ -16,23 +16,28 @@ import (
 func main() {
 	db, err := sql.Open("sqlite3", "./forumdb.db")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to open database:", err)
 	}
 	defer db.Close()
 
+	// Test database connection
+	if err := db.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
+	}
+	log.Println("Database connection successful")
+
 	repo, err := sqlite.New(db)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to create repository:", err)
 	}
+	log.Println("Repository initialized successfully")
 
 	// service with sqlite3 storage
 	s := service.New(repo)
-
-	// service with memory storage
-	// mem := memory.New(10)
-	// s := service.New(mem)
+	log.Println("Service layer initialized")
 
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	log.Println("Templates loaded successfully")
 
 	restAPI := api.New(s)
 	htmlRender := ssr.New(s, tmpl)
@@ -78,10 +83,17 @@ func main() {
 	mux.HandleFunc("POST /api/posts/{id}/comments/{commentId}/like", restAPI.LikeComment)
 	mux.HandleFunc("POST /api/posts/{id}/comments/{commentId}/dislike", restAPI.DislikeComment)
 
+	log.Println("All routes registered successfully")
+
 	restServer := http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 
-	log.Fatal(restServer.ListenAndServe())
+	log.Printf("Starting server on port :8080...")
+	log.Printf("Server is ready! Open http://localhost:8080 in your browser")
+
+	if err := restServer.ListenAndServe(); err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
 }
