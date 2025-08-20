@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Comment - Forum</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+        .header { background-color: #333; color: white; padding: 1rem 0; }
+        .nav { display: flex; justify-content: space-between; align-items: center; }
+        .nav a { color: white; text-decoration: none; margin-left: 1rem; }
+        .nav a:hover { color: #ddd; }
+        .main { padding: 2rem 0; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; height: 160px; resize: vertical; }
+        .btn { display: inline-block; padding: 0.5rem 1rem; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem; }
+        .btn:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #545b62; }
+        .error { color: #dc3545; margin-bottom: 1rem; }
+    </style>
+    </head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div><a href="/">Forum</a></div>
+                <div><a href="/posts/{{.PostID}}">Back to Post</a></div>
+            </nav>
+        </div>
+    </header>
+    <main class="main">
+        <div class="container">
+            <h1>Update Comment</h1>
+            {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+            <form method="POST" action="/posts/{{.PostID}}/comments/{{.Comment.ID}}/edit">
+                <div class="form-group">
+                    <label for="content">Content</label>
+                    <textarea id="content" name="content" required>{{.Comment.Content}}</textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn">Update Comment</button>
+                    <a href="/posts/{{.PostID}}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

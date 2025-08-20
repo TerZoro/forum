@@ -1,2 +1,0 @@
-FORUM
-by Ali Seisenbay

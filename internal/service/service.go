@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"forum/internal/domain/account"
@@ -19,13 +21,16 @@ type Repository interface {
 	GetAccountByUsername(ctx context.Context, username string) (account.Account, error)
 
 	CreatePost(ctx context.Context, p post.Post) error
+	UpdatePost(ctx context.Context, postID, authorID, title, content string, categories []string) error
 	DeletePost(ctx context.Context, postID string) error
 	GetPosts(ctx context.Context) ([]post.Post, error)
+	FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error)
 	GetPostByID(ctx context.Context, postID string) (post.Post, error)
 	LikePost(ctx context.Context, postID, userID string) error
 	DislikePost(ctx context.Context, postID, userID string) error
 
 	CreateComment(ctx context.Context, c comment.Comment) error
+	UpdateComment(ctx context.Context, id, authorID, content string) error
 	DeleteComment(ctx context.Context, commentID string) error
 	GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error)
 	GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error)
@@ -133,8 +138,38 @@ func (s *Service) DeletePost(ctx context.Context, postID string) error {
 	return s.repo.DeletePost(ctx, postID)
 }
 
+type UpdatePostRequest struct {
+	Title      string
+	Content    string
+	Categories []string
+}
+
+func (s *Service) UpdatePost(ctx context.Context, postID string, req UpdatePostRequest, userID string) error {
+	// Validate input
+	if req.Title == "" {
+		return errors.New("title cannot be empty")
+	}
+	if req.Content == "" {
+		return errors.New("content cannot be empty")
+	}
+
+	// Trim whitespace
+	req.Title = strings.TrimSpace(req.Title)
+	req.Content = strings.TrimSpace(req.Content)
+
+	err := s.repo.UpdatePost(ctx, postID, userID, req.Title, req.Content, req.Categories)
+	if err == sql.ErrNoRows {
+		return errors.New("post not found or you don't have permission to edit it")
+	}
+	return err
+}
+
 func (s *Service) GetPosts(ctx context.Context) ([]post.Post, error) {
 	return s.repo.GetPosts(ctx)
+}
+
+func (s *Service) FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error) {
+	return s.repo.FilterPosts(ctx, sortMethod)
 }
 
 func (s *Service) GetPostByID(ctx context.Context, postID string) (post.Post, error) {
@@ -174,6 +209,26 @@ func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, u
 
 func (s *Service) DeleteComment(ctx context.Context, commentID string) error {
 	return s.repo.DeleteComment(ctx, commentID)
+}
+
+type UpdateCommentRequest struct {
+	Content string
+}
+
+func (s *Service) UpdateComment(ctx context.Context, commentID string, req UpdateCommentRequest, userID string) error {
+	// Validate input
+	if req.Content == "" {
+		return errors.New("content cannot be empty")
+	}
+
+	// Trim whitespace
+	req.Content = strings.TrimSpace(req.Content)
+
+	err := s.repo.UpdateComment(ctx, commentID, userID, req.Content)
+	if err == sql.ErrNoRows {
+		return errors.New("comment not found or you don't have permission to edit it")
+	}
+	return err
 }
 
 func (s *Service) GetCommentByID(ctx context.Context, commentID string) (comment.Comment, error) {

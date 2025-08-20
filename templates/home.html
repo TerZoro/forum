@@ -91,6 +91,10 @@
             display: flex;
             gap: 1rem;
         }
+        
+
+        
+
     </style>
 </head>
 <body>
@@ -125,6 +129,18 @@
                     </div>
                 {{end}}
                 
+                <!-- Filter Controls -->
+                <div style="margin-bottom: 2rem; padding: 1rem; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h3 style="margin-bottom: 1rem;">Sort Posts</h3>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="/?sort=newest" class="btn" style="background-color: #007bff;">Newest First</a>
+                        <a href="/?sort=oldest" class="btn" style="background-color: #6c757d;">Oldest First</a>
+                        <a href="/?sort=updated" class="btn" style="background-color: #28a745;">Recently Updated</a>
+                        <a href="/?sort=likes" class="btn" style="background-color: #dc3545;">Most Liked</a>
+                        <a href="/?sort=dislikes" class="btn" style="background-color: #6f42c1;">Most Disliked</a>
+                    </div>
+                </div>
+                
                 <div class="posts">
                     {{if .Posts}}
                         {{range .Posts}}
@@ -138,6 +154,10 @@
                                     <span>By {{.AuthorID}}</span>
                                     <span>•</span>
                                     <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                                    {{if .UpdatedAt.After .CreatedAt}}
+                                    <span>•</span>
+                                    <span>Updated {{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                    {{end}}
                                     <span>•</span>
                                     <span>{{len .Categories}} categories</span>
                                     <span>•</span>
@@ -176,5 +196,7 @@
             </div>
         </div>
     </main>
+    
+    <script src="/static/js/filter.js"></script>
 </body>
 </html> 

@@ -207,6 +207,21 @@ func (rt *API) GetPosts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(posts)
 }
 
+func (rt *API) FilterPosts(w http.ResponseWriter, r *http.Request) {
+	sortMethod := r.URL.Query().Get("sort")
+	if sortMethod == "" {
+		sortMethod = "newest" // default sort
+	}
+
+	posts, err := rt.s.FilterPosts(r.Context(), sortMethod)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(posts)
+}
+
 func (rt *API) GetPostByID(w http.ResponseWriter, r *http.Request) {
 	postID, err := rt.getIDFromPath(r, 3)
 	if err != nil {
@@ -420,4 +435,76 @@ func (rt *API) getIDFromPath(r *http.Request, position int) (string, error) {
 		return "", errors.New("invalid ID in path")
 	}
 	return pathParts[position], nil
+}
+
+type UpdatePostRequest struct {
+	Title      string   `json:"title"`
+	Content    string   `json:"content"`
+	Categories []string `json:"categories"`
+}
+
+func (rt *API) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	user := rt.getUserFromSession(r)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	postID, err := rt.getIDFromPath(r, 3)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req UpdatePostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid data", http.StatusBadRequest)
+		return
+	}
+
+	err = rt.s.UpdatePost(r.Context(), postID, service.UpdatePostRequest{
+		Title:      req.Title,
+		Content:    req.Content,
+		Categories: req.Categories,
+	}, user.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type UpdateCommentRequest struct {
+	Content string `json:"content"`
+}
+
+func (rt *API) UpdateComment(w http.ResponseWriter, r *http.Request) {
+	user := rt.getUserFromSession(r)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	commentID, err := rt.getIDFromPath(r, 5)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateCommentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid data", http.StatusBadRequest)
+		return
+	}
+
+	err = rt.s.UpdateComment(r.Context(), commentID, service.UpdateCommentRequest{
+		Content: req.Content,
+	}, user.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

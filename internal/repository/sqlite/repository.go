@@ -446,6 +446,102 @@ func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]st
 	return categories, nil
 }
 
+func (r *Repository) FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
+	var query string
+	switch sortMethod {
+	case "oldest":
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.created_at ASC`
+	case "newest":
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.created_at DESC`
+	case "updated":
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.updated_at DESC`
+	case "likes":
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.likes DESC`
+	case "dislikes":
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.dislikes DESC`
+	default:
+		// For any invalid sort method, default to newest
+		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		         FROM posts p ORDER BY p.created_at DESC`
+	}
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []post.Post
+	for rows.Next() {
+		var p post.Post
+		err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		categories, err := r.getPostCategories(ctx, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.Categories = categories
+
+		posts = append(posts, p)
+	}
+
+	return posts, nil
+}
+
+func (r *Repository) UpdatePost(ctx context.Context, postID, authorID, newTitle, newContent string, newCategories []string) error {
+	r.mu.LockForWrite("post_write")
+	defer r.mu.UnlockForWrite("post_write")
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx,
+		`UPDATE posts SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP 
+		 WHERE id = ? AND author_id = ?`,
+		newTitle, newContent, postID, authorID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM post_categories WHERE post_id = ?`, postID)
+	if err != nil {
+		return err
+	}
+
+	for _, category := range newCategories {
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO post_categories (post_id, category) VALUES (?, ?)`,
+			postID, category)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 // Comment methods
 func (r *Repository) CreateComment(ctx context.Context, c comment.Comment) error {
 	r.mu.LockForWrite("comment_write")
@@ -658,6 +754,29 @@ func (r *Repository) DislikeComment(ctx context.Context, commentID, userID strin
 	}
 
 	return tx.Commit()
+}
+
+func (r *Repository) UpdateComment(ctx context.Context, id, authorID, content string) error {
+	r.mu.LockForWrite("comment_write")
+	defer r.mu.UnlockForWrite("comment_write")
+
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE comments SET content = ?, updated_at = CURRENT_TIMESTAMP 
+		 WHERE id = ? AND author_id = ?`,
+		content, id, authorID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 // Session methods

@@ -26,7 +26,20 @@ type DataRequest struct {
 }
 
 func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
-	posts, err := rt.s.GetPosts(r.Context())
+	sortMethod := r.URL.Query().Get("sort")
+	if sortMethod == "" {
+		sortMethod = "newest" // default sort
+	}
+
+	var posts []post.Post
+	var err error
+
+	if sortMethod == "newest" {
+		posts, err = rt.s.GetPosts(r.Context())
+	} else {
+		posts, err = rt.s.FilterPosts(r.Context(), sortMethod)
+	}
+
 	if err != nil {
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
@@ -259,6 +272,74 @@ func (rt *Renderer) DislikePost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
+func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	postID, ok := rt.pathPart(r, 2)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	user := rt.currentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	post, err := rt.s.GetPostByID(r.Context(), postID)
+	if err != nil {
+		http.Error(w, "post not found", http.StatusNotFound)
+		return
+	}
+
+	if post.AuthorID != user.ID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		rt.renderTemplate(w, "update-post.html", map[string]any{
+			"Post": post,
+		})
+		return
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+
+		title := r.Form.Get("title")
+		content := r.Form.Get("content")
+		categoriesStr := r.Form.Get("categories")
+
+		// Parse categories
+		var categories []string
+		if categoriesStr != "" {
+			categories = strings.Split(categoriesStr, ",")
+			for i, cat := range categories {
+				categories[i] = strings.TrimSpace(cat)
+			}
+		}
+
+		err = rt.s.UpdatePost(r.Context(), postID, service.UpdatePostRequest{
+			Title:      title,
+			Content:    content,
+			Categories: categories,
+		}, user.ID)
+		if err != nil {
+			rt.renderTemplate(w, "update-post.html", map[string]any{
+				"Post":  post,
+				"Error": err.Error(),
+			})
+			return
+		}
+
+		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func (rt *Renderer) CreateComment(w http.ResponseWriter, r *http.Request) {
 	user := rt.currentUser(w, r)
 	if user == nil {
@@ -346,6 +427,55 @@ func (rt *Renderer) DislikeComment(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
+func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
+	user := rt.currentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	postID, ok1 := rt.pathPart(r, 2)
+	commentID, ok2 := rt.pathPart(r, 4) // /posts/{id}/comments/{commentId}/edit
+	if !ok1 || !ok2 {
+		http.NotFound(w, r)
+		return
+	}
+
+	c, err := rt.s.GetCommentByID(r.Context(), commentID)
+	if err != nil || c.AuthorID != user.ID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		rt.renderTemplate(w, "update-comment.html", map[string]any{
+			"PostID":  postID,
+			"Comment": c,
+		})
+		return
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+		content := r.Form.Get("content")
+
+		err = rt.s.UpdateComment(r.Context(), commentID, service.UpdateCommentRequest{Content: content}, user.ID)
+		if err != nil {
+			rt.renderTemplate(w, "update-comment.html", map[string]any{
+				"PostID":  postID,
+				"Comment": c,
+				"Error":   err.Error(),
+			})
+			return
+		}
+		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func (rt *Renderer) currentUser(w http.ResponseWriter, r *http.Request) *account.Account {
 	c, err := r.Cookie("session_id")
 	if err != nil {
@@ -377,7 +507,7 @@ func (rt *Renderer) pathPart(r *http.Request, pos int) (string, bool) {
 func (rt *Renderer) renderTemplate(w http.ResponseWriter, name string, data any) {
 	var buf bytes.Buffer
 	if err := rt.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
-		http.Error(w, "Template error", http.StatusInternalServerError)
+		http.Error(w, "Template error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
