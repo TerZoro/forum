@@ -7,6 +7,7 @@ import (
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
 	"forum/internal/domain/session"
+	"strings"
 )
 
 type Repository struct {
@@ -542,6 +543,23 @@ func (r *Repository) UpdatePost(ctx context.Context, postID, authorID, newTitle,
 	return tx.Commit()
 }
 
+func (r *Repository) GetPostVoteByUser(ctx context.Context, postID, userID string) (bool, bool, error) {
+	r.mu.LockForRead("like_operation")
+	defer r.mu.UnlockForRead("like_operation")
+
+	var isLike bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT is_like FROM post_likes WHERE post_id = ? AND user_id = ?`,
+		postID, userID).Scan(&isLike)
+	if err == sql.ErrNoRows {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return isLike, true, nil
+}
+
 // Comment methods
 func (r *Repository) CreateComment(ctx context.Context, c comment.Comment) error {
 	r.mu.LockForWrite("comment_write")
@@ -777,6 +795,41 @@ func (r *Repository) UpdateComment(ctx context.Context, id, authorID, content st
 	}
 
 	return nil
+}
+
+func (r *Repository) GetCommentVotesByUserForComments(ctx context.Context, userID string, commentIDs []string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	if len(commentIDs) == 0 {
+		return result, nil
+	}
+
+	r.mu.LockForRead("like_operation")
+	defer r.mu.UnlockForRead("like_operation")
+
+	placeholders := make([]string, len(commentIDs))
+	args := make([]any, 0, len(commentIDs)+1)
+	args = append(args, userID)
+	for i := range commentIDs {
+		placeholders[i] = "?"
+		args = append(args, commentIDs[i])
+	}
+	query := `SELECT comment_id, is_like FROM comment_likes WHERE user_id = ? AND comment_id IN (` + strings.Join(placeholders, ",") + `)`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		var isLike bool
+		if err := rows.Scan(&id, &isLike); err != nil {
+			return nil, err
+		}
+		result[id] = isLike
+	}
+	return result, nil
 }
 
 // Session methods

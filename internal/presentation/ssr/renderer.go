@@ -20,9 +20,10 @@ func New(s *service.Service, tmp *template.Template) *Renderer {
 }
 
 type DataRequest struct {
-	Title string
-	User  *account.Account
-	Posts []post.Post
+	Title   string
+	User    *account.Account
+	Posts   []post.Post
+	Authors map[string]string
 }
 
 func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
@@ -62,10 +63,24 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build authors map (id -> username) for listed posts
+	authors := make(map[string]string)
+	seen := make(map[string]struct{})
+	for _, p := range posts {
+		if _, ok := seen[p.AuthorID]; ok {
+			continue
+		}
+		seen[p.AuthorID] = struct{}{}
+		if a, err := rt.s.GetAccountByID(r.Context(), p.AuthorID); err == nil {
+			authors[p.AuthorID] = a.Username
+		}
+	}
+
 	rt.renderTemplate(w, "home.html", DataRequest{
-		Title: "Home",
-		User:  user,
-		Posts: posts,
+		Title:   "Home",
+		User:    user,
+		Posts:   posts,
+		Authors: authors,
 	})
 }
 
@@ -233,9 +248,44 @@ func (rt *Renderer) PostDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = rt.tmpl.ExecuteTemplate(w, "post-detail.html", map[string]any{
-		"Title": "Post", "User": user, "Post": p, "Comments": comments,
-	})
+	// Build authors map (id -> username) for the post author and commenters
+	authors := make(map[string]string)
+	if a, err := rt.s.GetAccountByID(r.Context(), p.AuthorID); err == nil {
+		authors[p.AuthorID] = a.Username
+	}
+	for _, c := range comments {
+		if _, ok := authors[c.AuthorID]; ok {
+			continue
+		}
+		if a, err := rt.s.GetAccountByID(r.Context(), c.AuthorID); err == nil {
+			authors[c.AuthorID] = a.Username
+		}
+	}
+
+	data := map[string]any{
+		"Title":    "Post",
+		"User":     user,
+		"Post":     p,
+		"Comments": comments,
+		"Authors":  authors,
+	}
+
+	// Include vote state if logged in
+	if user != nil {
+		if vote, err := rt.s.GetPostVote(r.Context(), p.ID, user.ID); err == nil {
+			data["PostVote"] = vote
+		}
+		// Collect comment ids
+		ids := make([]string, 0, len(comments))
+		for _, c := range comments {
+			ids = append(ids, c.ID)
+		}
+		if m, err := rt.s.GetCommentVotes(r.Context(), user.ID, ids); err == nil {
+			data["CommentVotes"] = m
+		}
+	}
+
+	_ = rt.tmpl.ExecuteTemplate(w, "post-detail.html", data)
 }
 
 func (rt *Renderer) LikePost(w http.ResponseWriter, r *http.Request) {

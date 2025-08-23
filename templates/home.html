@@ -4,98 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Forum</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f4f4f4;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        .header {
-            background-color: #333;
-            color: white;
-            padding: 1rem 0;
-        }
-        
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .nav a {
-            color: white;
-            text-decoration: none;
-            margin-left: 1rem;
-        }
-        
-        .nav a:hover {
-            color: #ddd;
-        }
-        
-        .main {
-            padding: 2rem 0;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        
-        .post {
-            background: white;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .post-title {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .post-meta {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-        
-        .post-content {
-            margin-bottom: 1rem;
-        }
-        
-        .post-actions {
-            display: flex;
-            gap: 1rem;
-        }
-        
-
-        
-
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <header class="header">
@@ -124,20 +33,20 @@
                 <h1>Welcome to the Forum</h1>
                 
                 {{if .User}}
-                    <div style="margin-bottom: 2rem;">
+                    <div class="mb-2">
                         <a href="/posts/new" class="btn">Create New Post</a>
                     </div>
                 {{end}}
                 
                 <!-- Filter Controls -->
-                <div style="margin-bottom: 2rem; padding: 1rem; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h3 style="margin-bottom: 1rem;">Sort Posts</h3>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <a href="/?sort=newest" class="btn" style="background-color: #007bff;">Newest First</a>
-                        <a href="/?sort=oldest" class="btn" style="background-color: #6c757d;">Oldest First</a>
-                        <a href="/?sort=updated" class="btn" style="background-color: #28a745;">Recently Updated</a>
-                        <a href="/?sort=likes" class="btn" style="background-color: #dc3545;">Most Liked</a>
-                        <a href="/?sort=dislikes" class="btn" style="background-color: #6f42c1;">Most Disliked</a>
+                <div class="card p-1 mb-2">
+                    <h3 class="mb-1">Sort Posts</h3>
+                    <div class="flex gap-sm flex-wrap">
+                        <a href="/?sort=newest" class="btn btn-sort" data-sort="newest">Newest First</a>
+                        <a href="/?sort=oldest" class="btn btn-sort" data-sort="oldest">Oldest First</a>
+                        <a href="/?sort=updated" class="btn btn-sort" data-sort="updated">Recently Updated</a>
+                        <a href="/?sort=likes" class="btn btn-sort" data-sort="likes"><img src="/static/images/like.png" alt="Like" class="icon"> Most Liked</a>
+                        <a href="/?sort=dislikes" class="btn btn-sort" data-sort="dislikes"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> Most Disliked</a>
                     </div>
                 </div>
                 
@@ -146,12 +55,12 @@
                         {{range .Posts}}
                             <article class="post">
                                 <h2 class="post-title">
-                                    <a href="/posts/{{.ID}}" style="color: inherit; text-decoration: none;">
+                                    <a href="/posts/{{.ID}}" class="link-plain">
                                         {{.Title}}
                                     </a>
                                 </h2>
                                 <div class="post-meta">
-                                    <span>By {{.AuthorID}}</span>
+                                    <span>By {{with index $.Authors .AuthorID}}{{.}}{{else}}{{.AuthorID}}{{end}}</span>
                                     <span>•</span>
                                     <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                                     {{if .UpdatedAt.After .CreatedAt}}
@@ -161,7 +70,7 @@
                                     <span>•</span>
                                     <span>{{len .Categories}} categories</span>
                                     <span>•</span>
-                                    <span>👍 {{.Likes}} 👎 {{.Dislikes}}</span>
+                                    <span><img src="/static/images/like.png" alt="Like" class="icon"> {{.Likes}} <img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</span>
                                 </div>
                                 <div class="post-content">
                                     {{if gt (len .Content) 200}}
@@ -175,7 +84,7 @@
                                     {{if .Categories}}
                                         <div>
                                             {{range .Categories}}
-                                                <span style="background: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; margin-right: 0.5rem;">{{.}}</span>
+                                                <span class="chip">{{.}}</span>
                                             {{end}}
                                         </div>
                                     {{end}}

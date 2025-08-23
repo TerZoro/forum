@@ -28,6 +28,7 @@ type Repository interface {
 	GetPostByID(ctx context.Context, postID string) (post.Post, error)
 	LikePost(ctx context.Context, postID, userID string) error
 	DislikePost(ctx context.Context, postID, userID string) error
+	GetPostVoteByUser(ctx context.Context, postID, userID string) (bool, bool, error)
 
 	CreateComment(ctx context.Context, c comment.Comment) error
 	UpdateComment(ctx context.Context, id, authorID, content string) error
@@ -36,6 +37,7 @@ type Repository interface {
 	GetCommentsByPost(ctx context.Context, postID string) ([]comment.Comment, error)
 	LikeComment(ctx context.Context, commentID, userID string) error
 	DislikeComment(ctx context.Context, commentID, userID string) error
+	GetCommentVotesByUserForComments(ctx context.Context, userID string, commentIDs []string) (map[string]bool, error)
 
 	CreateSession(ctx context.Context, s session.Session) error
 	GetSession(ctx context.Context, sessionID string) (session.Session, error)
@@ -184,6 +186,20 @@ func (s *Service) DislikePost(ctx context.Context, postID, userID string) error 
 	return s.repo.DislikePost(ctx, postID, userID)
 }
 
+func (s *Service) GetPostVote(ctx context.Context, postID, userID string) (string, error) {
+	isLike, ok, err := s.repo.GetPostVoteByUser(ctx, postID, userID)
+	if err != nil || !ok {
+		if err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+	if isLike {
+		return "like", nil
+	}
+	return "dislike", nil
+}
+
 type CreateCommentRequest struct {
 	Content string
 	PostID  string
@@ -245,6 +261,25 @@ func (s *Service) LikeComment(ctx context.Context, commentID, userID string) err
 
 func (s *Service) DislikeComment(ctx context.Context, commentID, userID string) error {
 	return s.repo.DislikeComment(ctx, commentID, userID)
+}
+
+func (s *Service) GetCommentVotes(ctx context.Context, userID string, commentIDs []string) (map[string]string, error) {
+	result := make(map[string]string)
+	if len(commentIDs) == 0 {
+		return result, nil
+	}
+	raw, err := s.repo.GetCommentVotesByUserForComments(ctx, userID, commentIDs)
+	if err != nil {
+		return nil, err
+	}
+	for id, isLike := range raw {
+		if isLike {
+			result[id] = "like"
+		} else {
+			result[id] = "dislike"
+		}
+	}
+	return result, nil
 }
 
 func (s *Service) GetUserFromSession(ctx context.Context, sessionID string) (account.Account, error) {
