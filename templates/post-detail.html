@@ -62,7 +62,7 @@
                             <form method="POST" action="/posts/{{.Post.ID}}/dislike" class="inline">
                                 <button type="submit" class="btn btn-dislike btn-sm {{if eq .PostVote "dislike"}}is-active{{end}}" data-dislike-id="{{.Post.ID}}"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Post.Dislikes}}</button>
                             </form>
-                            {{if and .User (eq .Post.AuthorID .User.ID)}}
+                            {{if and .User (or (eq .Post.AuthorID .User.ID) .User.IsAdmin)}}
                                 <a href="/posts/{{.Post.ID}}/edit" class="btn btn-success">Edit Post</a>
                                 <form method="POST" action="/posts/{{.Post.ID}}/delete" class="inline" onsubmit="return confirm('Are you sure you want to delete this post?')">
                                     <button type="submit" class="btn btn-danger">Delete Post</button>
@@ -105,7 +105,7 @@
                                             <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/dislike" class="inline">
                                                 <button type="submit" class="btn btn-dislike btn-sm {{with index $.CommentVotes .ID}}{{if eq . "dislike"}}is-active{{end}}{{end}}" data-dislike-comment-id="{{.ID}}"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</button>
                                             </form>
-                                            {{if and $.User (eq .AuthorID $.User.ID)}}
+                                            {{if and $.User (or (eq .AuthorID $.User.ID) $.User.IsAdmin)}}
                                                 <a href="/posts/{{$.Post.ID}}/comments/{{.ID}}/edit" class="btn btn-success btn-sm">Edit</a>
                                                 <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/delete" class="inline" onsubmit="return confirm('Are you sure you want to delete this comment?')">
                                                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
