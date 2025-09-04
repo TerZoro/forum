@@ -221,7 +221,7 @@ func (rt *Renderer) DeletePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p, err := rt.s.GetPostByID(r.Context(), postID)
-	if err != nil || p.AuthorID != user.ID {
+	if err != nil || (p.AuthorID != user.ID && !user.IsAdmin) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -341,7 +341,7 @@ func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if post.AuthorID != user.ID {
+	if post.AuthorID != user.ID && !user.IsAdmin {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -433,7 +433,7 @@ func (rt *Renderer) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c, err := rt.s.GetCommentByID(r.Context(), commentID)
-	if err != nil || c.AuthorID != user.ID {
+	if err != nil || (c.AuthorID != user.ID && !user.IsAdmin) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -492,7 +492,7 @@ func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c, err := rt.s.GetCommentByID(r.Context(), commentID)
-	if err != nil || c.AuthorID != user.ID {
+	if err != nil || (c.AuthorID != user.ID && !user.IsAdmin) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -563,4 +563,62 @@ func (rt *Renderer) renderTemplate(w http.ResponseWriter, name string, data any)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = buf.WriteTo(w)
+}
+
+func (rt *Renderer) UserPage(w http.ResponseWriter, r *http.Request) {
+	// URL: /users/{username}
+	username, ok := rt.pathPart(r, 2)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	var current *account.Account
+	if u := rt.currentUser(w, r); u != nil {
+		current = u
+	}
+
+	acct, err := rt.s.GetAccountByUsername(r.Context(), username)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	posts, _ := rt.s.GetPostsByAuthor(r.Context(), acct.ID)
+	comments, _ := rt.s.GetCommentsByAuthor(r.Context(), acct.ID)
+
+	// Build authors map and commentPosts map for rendering
+	authors := map[string]string{acct.ID: acct.Username}
+	commentPosts := make(map[string]post.Post)
+	seenPost := make(map[string]struct{})
+	seenAuthor := map[string]struct{}{acct.ID: {}}
+
+	for _, c := range comments {
+		if _, ok := seenPost[c.PostID]; ok {
+			continue
+		}
+		p, err := rt.s.GetPostByID(r.Context(), c.PostID)
+		if err == nil {
+			commentPosts[c.PostID] = p
+			seenPost[c.PostID] = struct{}{}
+			if _, ok := seenAuthor[p.AuthorID]; !ok {
+				if a, err := rt.s.GetAccountByID(r.Context(), p.AuthorID); err == nil {
+					authors[p.AuthorID] = a.Username
+					seenAuthor[p.AuthorID] = struct{}{}
+				}
+			}
+		}
+	}
+
+	data := map[string]any{
+		"Title":        "User",
+		"User":         current,
+		"Profile":      acct,
+		"Posts":        posts,
+		"Comments":     comments,
+		"Authors":      authors,
+		"CommentPosts": commentPosts,
+	}
+
+	rt.renderTemplate(w, "user.html", data)
 }

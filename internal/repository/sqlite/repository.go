@@ -22,11 +22,15 @@ func New(db *sql.DB) (*Repository, error) {
                 email TEXT NOT NULL UNIQUE,
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
-                created_at DATETIME NOT NULL
+                created_at DATETIME NOT NULL,
+                is_admin BOOLEAN NOT NULL DEFAULT 0
         );`)
 	if err != nil {
 		return nil, err
 	}
+
+	// Attempt to add is_admin column for existing databases; ignore error if it exists
+	_, _ = db.Exec(`ALTER TABLE accounts ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0`)
 
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS posts (
@@ -124,9 +128,9 @@ func (r *Repository) SignUp(ctx context.Context, a account.Account) (string, err
 	defer r.mu.UnlockForWrite("account_write")
 
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO accounts (id, email, username, password, created_at)
-                 VALUES (?, ?, ?, ?, ?)`,
-		a.ID, a.Email, a.Username, a.Password, a.CreateAt)
+		`INSERT INTO accounts (id, email, username, password, created_at, is_admin)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+		a.ID, a.Email, a.Username, a.Password, a.CreateAt, a.IsAdmin)
 	return a.ID, err
 }
 
@@ -136,8 +140,8 @@ func (r *Repository) GetAccountByEmail(ctx context.Context, email string) (accou
 
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, email, username, password, created_at FROM accounts WHERE email = ?`,
-		email).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt)
+		`SELECT id, email, username, password, created_at, is_admin FROM accounts WHERE email = ?`,
+		email).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt, &a.IsAdmin)
 	return a, err
 }
 
@@ -147,8 +151,8 @@ func (r *Repository) GetAccountByID(ctx context.Context, id string) (account.Acc
 
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, email, username, password, created_at FROM accounts WHERE id = ?`,
-		id).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt)
+		`SELECT id, email, username, password, created_at, is_admin FROM accounts WHERE id = ?`,
+		id).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt, &a.IsAdmin)
 	return a, err
 }
 
@@ -158,9 +162,18 @@ func (r *Repository) GetAccountByUsername(ctx context.Context, username string) 
 
 	var a account.Account
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, email, username, password, created_at FROM accounts WHERE username = ?`,
-		username).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt)
+		`SELECT id, email, username, password, created_at, is_admin FROM accounts WHERE username = ?`,
+		username).Scan(&a.ID, &a.Email, &a.Username, &a.Password, &a.CreateAt, &a.IsAdmin)
 	return a, err
+}
+
+func (r *Repository) GetAccountsCount(ctx context.Context) (int, error) {
+	r.mu.LockForRead("account_read")
+	defer r.mu.UnlockForRead("account_read")
+
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(1) FROM accounts`).Scan(&n)
+	return n, err
 }
 
 // Post methods
@@ -244,6 +257,38 @@ func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
 		 FROM posts p ORDER BY p.created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []post.Post
+	for rows.Next() {
+		var p post.Post
+		err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		categories, err := r.getPostCategories(ctx, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.Categories = categories
+
+		posts = append(posts, p)
+	}
+
+	return posts, nil
+}
+
+func (r *Repository) GetPostsByAuthor(ctx context.Context, authorID string) ([]post.Post, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+         FROM posts p WHERE p.author_id = ? ORDER BY p.created_at DESC`, authorID)
 	if err != nil {
 		return nil, err
 	}
@@ -623,6 +668,33 @@ func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]co
 		 FROM comments 
 		 WHERE post_id = ? 
 		 ORDER BY created_at ASC`, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []comment.Comment
+	for rows.Next() {
+		var c comment.Comment
+		err := rows.Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, c)
+	}
+
+	return comments, nil
+}
+
+func (r *Repository) GetCommentsByAuthor(ctx context.Context, authorID string) ([]comment.Comment, error) {
+	r.mu.LockForRead("comment_read")
+	defer r.mu.UnlockForRead("comment_read")
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, content, post_id, author_id, likes, dislikes, created_at, updated_at 
+         FROM comments 
+         WHERE author_id = ? 
+         ORDER BY created_at DESC`, authorID)
 	if err != nil {
 		return nil, err
 	}

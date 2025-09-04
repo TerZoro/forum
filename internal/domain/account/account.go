@@ -14,6 +14,7 @@ type Account struct {
 	Username string
 	Password string
 	CreateAt time.Time
+	IsAdmin  bool
 }
 
 func New(email, name, password string) (Account, error) {
@@ -38,6 +39,7 @@ func New(email, name, password string) (Account, error) {
 		Username: name,
 		Password: string(bytes),
 		CreateAt: time.Now(),
+		IsAdmin:  false,
 	}, nil
 }
 

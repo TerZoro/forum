@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User - Forum</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div>
+                    <a href="/">Forum</a>
+                </div>
+                <div>
+                    {{if .User}}
+                        <span>Welcome, {{.User.Username}}</span>
+                        <a href="/posts/new">New Post</a>
+                        <a href="/logout">Logout</a>
+                    {{else}}
+                        <a href="/login">Login</a>
+                        <a href="/signup">Sign Up</a>
+                    {{end}}
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="home">
+                <h1>User Profile</h1>
+
+                <div class="card p-1 mb-2">
+                    <h2 class="mb-1">{{.Profile.Username}} {{if .Profile.IsAdmin}}<span class="chip">Admin</span>{{end}}</h2>
+                    <div class="post-meta">Joined {{.Profile.CreateAt.Format "Jan 02, 2006"}}</div>
+                    <div>Email: {{.Profile.Email}}</div>
+                </div>
+
+                <section class="mb-2">
+                    <h3 class="mb-1">Posts</h3>
+                    <div class="posts">
+                        {{if .Posts}}
+                            {{range .Posts}}
+                                <article class="post">
+                                    <h2 class="post-title">
+                                        <a href="/posts/{{.ID}}" class="link-plain">
+                                            {{.Title}}
+                                        </a>
+                                    </h2>
+                                    <div class="post-meta">
+                                        <span>By {{with index $.Authors .AuthorID}}{{.}}{{else}}{{.AuthorID}}{{end}}</span>
+                                        <span>•</span>
+                                        <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                                        {{if .UpdatedAt.After .CreatedAt}}
+                                        <span>•</span>
+                                        <span>Updated {{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                        {{end}}
+                                        <span>•</span>
+                                        <span>{{len .Categories}} categories</span>
+                                        <span>•</span>
+                                        <span><img src="/static/images/like.png" alt="Like" class="icon"> {{.Likes}} <img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</span>
+                                    </div>
+                                    <div class="post-content">
+                                        {{if gt (len .Content) 200}}
+                                            {{printf "%.200s" .Content}}...
+                                        {{else}}
+                                            {{.Content}}
+                                        {{end}}
+                                    </div>
+                                    <div class="post-actions">
+                                        <a href="/posts/{{.ID}}" class="btn">Read More</a>
+                                        {{if .Categories}}
+                                            <div>
+                                                {{range .Categories}}
+                                                    <span class="chip">{{.}}</span>
+                                                {{end}}
+                                            </div>
+                                        {{end}}
+                                    </div>
+                                </article>
+                            {{end}}
+                        {{else}}
+                            <div class="post"><p>No posts yet.</p></div>
+                        {{end}}
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="mb-1">Comments</h3>
+                    <div class="posts">
+                        {{if .Comments}}
+                            {{range .Comments}}
+                                <article class="post">
+                                    <div class="post-meta">
+                                        {{ $p := index $.CommentPosts .PostID }}
+                                        <span>On post <a href="/posts/{{.PostID}}" class="link-plain">{{if $p.Title}}{{$p.Title}}{{else}}{{.PostID}}{{end}}</a></span>
+                                        <span>by {{with index $.Authors $p.AuthorID}}{{.}}{{else}}{{$p.AuthorID}}{{end}}</span>
+                                        <span>•</span>
+                                        <span>{{.CreatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                    </div>
+                                    <div class="post-content">{{.Content}}</div>
+                                </article>
+                            {{end}}
+                        {{else}}
+                            <div class="post"><p>No comments yet.</p></div>
+                        {{end}}
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

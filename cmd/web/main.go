@@ -69,6 +69,9 @@ func main() {
 	mux.HandleFunc("POST /posts/{id}/comments/{commentId}/dislike", htmlRender.DislikeComment)
 	mux.HandleFunc("POST /posts/{id}/comments/{commentId}/delete", htmlRender.DeleteComment)
 
+	// Users
+	mux.HandleFunc("GET /users/{username}", htmlRender.UserPage)
+
 	// Authentication
 	mux.HandleFunc("POST /api/signup", restAPI.SignUp)
 	mux.HandleFunc("POST /api/login", restAPI.Login)

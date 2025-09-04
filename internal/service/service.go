@@ -29,6 +29,7 @@ type Repository interface {
 	LikePost(ctx context.Context, postID, userID string) error
 	DislikePost(ctx context.Context, postID, userID string) error
 	GetPostVoteByUser(ctx context.Context, postID, userID string) (bool, bool, error)
+	GetPostsByAuthor(ctx context.Context, authorID string) ([]post.Post, error)
 
 	CreateComment(ctx context.Context, c comment.Comment) error
 	UpdateComment(ctx context.Context, id, authorID, content string) error
@@ -38,10 +39,13 @@ type Repository interface {
 	LikeComment(ctx context.Context, commentID, userID string) error
 	DislikeComment(ctx context.Context, commentID, userID string) error
 	GetCommentVotesByUserForComments(ctx context.Context, userID string, commentIDs []string) (map[string]bool, error)
+	GetCommentsByAuthor(ctx context.Context, authorID string) ([]comment.Comment, error)
 
 	CreateSession(ctx context.Context, s session.Session) error
 	GetSession(ctx context.Context, sessionID string) (session.Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
+
+	GetAccountsCount(ctx context.Context) (int, error)
 }
 
 type Service struct {
@@ -57,6 +61,7 @@ type SignUpRequest struct {
 	Username string
 	Password string
 }
+
 type SignUpResponse struct {
 	ID string
 }
@@ -65,6 +70,12 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 	a, err := account.New(req.Email, req.Username, req.Password)
 	if err != nil {
 		return SignUpResponse{}, err
+	}
+
+	// Make the first registered account an admin
+	count, err := s.repo.GetAccountsCount(ctx)
+	if err == nil && count == 0 {
+		a.IsAdmin = true
 	}
 
 	id, err := s.repo.SignUp(ctx, a)
@@ -170,6 +181,10 @@ func (s *Service) GetPosts(ctx context.Context) ([]post.Post, error) {
 	return s.repo.GetPosts(ctx)
 }
 
+func (s *Service) GetPostsByAuthor(ctx context.Context, authorID string) ([]post.Post, error) {
+	return s.repo.GetPostsByAuthor(ctx, authorID)
+}
+
 func (s *Service) FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error) {
 	return s.repo.FilterPosts(ctx, sortMethod)
 }
@@ -255,6 +270,10 @@ func (s *Service) GetCommentsByPost(ctx context.Context, postID string) ([]comme
 	return s.repo.GetCommentsByPost(ctx, postID)
 }
 
+func (s *Service) GetCommentsByAuthor(ctx context.Context, authorID string) ([]comment.Comment, error) {
+	return s.repo.GetCommentsByAuthor(ctx, authorID)
+}
+
 func (s *Service) LikeComment(ctx context.Context, commentID, userID string) error {
 	return s.repo.LikeComment(ctx, commentID, userID)
 }
@@ -307,4 +326,8 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 
 func (s *Service) GetAccountByID(ctx context.Context, id string) (account.Account, error) {
 	return s.repo.GetAccountByID(ctx, id)
+}
+
+func (s *Service) GetAccountByUsername(ctx context.Context, username string) (account.Account, error) {
+	return s.repo.GetAccountByUsername(ctx, username)
 }
