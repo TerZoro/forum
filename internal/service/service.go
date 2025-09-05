@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
 	"forum/internal/domain/session"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Repository interface {
@@ -19,6 +22,8 @@ type Repository interface {
 	GetAccountByEmail(ctx context.Context, email string) (account.Account, error)
 	GetAccountByID(ctx context.Context, id string) (account.Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (account.Account, error)
+	UpdateAccountFields(ctx context.Context, id, newEmail, newUsername, newHashedPassword string) error
+	DeleteSessionsByUser(ctx context.Context, userID string) error
 
 	CreatePost(ctx context.Context, p post.Post) error
 	UpdatePost(ctx context.Context, postID, authorID, title, content string, categories []string) error
@@ -72,6 +77,11 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 		return SignUpResponse{}, err
 	}
 
+	// Password strength: min 8 chars, at least one letter and one digit
+	if err := validatePasswordStrength(req.Password); err != nil {
+		return SignUpResponse{}, err
+	}
+
 	// Make the first registered account an admin
 	count, err := s.repo.GetAccountsCount(ctx)
 	if err == nil && count == 0 {
@@ -84,6 +94,18 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 	}
 
 	return SignUpResponse{ID: id}, nil
+}
+
+func validatePasswordStrength(pw string) error {
+	if len(pw) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+	var hasLetter = regexp.MustCompile(`[A-Za-z]`).MatchString
+	var hasDigit = regexp.MustCompile(`\d`).MatchString
+	if !hasLetter(pw) || !hasDigit(pw) {
+		return errors.New("password must include letters and numbers")
+	}
+	return nil
 }
 
 type LoginRequest struct {
@@ -99,7 +121,14 @@ type LoginResponse struct {
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
-	a, err := s.repo.GetAccountByEmail(ctx, req.Email)
+	identifier := strings.TrimSpace(req.Email)
+	var a account.Account
+	var err error
+	if looksLikeEmail(identifier) {
+		a, err = s.repo.GetAccountByEmail(ctx, identifier)
+	} else {
+		a, err = s.repo.GetAccountByUsername(ctx, identifier)
+	}
 	if err != nil {
 		return LoginResponse{}, errors.New("invalid credentials")
 	}
@@ -121,6 +150,98 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		Username:  a.Username,
 		SessionID: sess.GetID(),
 	}, nil
+}
+
+var emailRE = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+
+func looksLikeEmail(s string) bool {
+	return emailRE.MatchString(s)
+}
+
+type UpdateAccountRequest struct {
+	NewEmail        string
+	NewUsername     string
+	NewPassword     string
+	CurrentPassword string
+}
+
+type UpdateUserResponse struct {
+	ID        string
+	Email     string
+	Password  string
+	Username  string
+	SessionID string
+}
+
+func (s *Service) UpdateAccount(ctx context.Context, userID string, req UpdateAccountRequest) error {
+	a, err := s.repo.GetAccountByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	var newEmail, newUsername, newHashed string
+
+	if e := strings.TrimSpace(req.NewEmail); e != "" && e != a.Email {
+		if !looksLikeEmail(e) {
+			return errors.New("invalid email format")
+		}
+		newEmail = e
+	}
+
+	if u := strings.TrimSpace(req.NewUsername); u != "" && u != a.Username {
+		// for future: add extra validation rules
+		newUsername = u
+	}
+
+	if p := strings.TrimSpace(req.NewPassword); p != "" {
+		if req.CurrentPassword == "" || !a.CheckPassword(req.CurrentPassword) {
+			return errors.New("current password is incorrect")
+		}
+		if req.CurrentPassword == p {
+			return errors.New("new password cannot be the same as current password")
+		}
+		if err := validatePasswordStrength(p); err != nil {
+			return err
+		}
+		// hash via domain helper by reusing bcrypt directly here to avoid changing Account API
+		// but to keep layering clean we can rely on account.New hashing; however it creates new ID.
+		// So we hash here:
+		hashed, herr := bcryptGenerate(p)
+		if herr != nil {
+			return herr
+		}
+		newHashed = hashed
+	}
+
+	// if nothing to change
+	if newEmail == "" && newUsername == "" && newHashed == "" {
+		return nil
+	}
+
+	if err := s.repo.UpdateAccountFields(ctx, userID, newEmail, newUsername, newHashed); err != nil {
+		return err
+	}
+
+	// If password changed, invalidate all sessions
+	if newHashed != "" {
+		_ = s.repo.DeleteSessionsByUser(ctx, userID)
+	}
+	return nil
+}
+
+// small wrapper for hashing password to keep UpdateAccount focused
+func bcryptGenerate(pw string) (string, error) {
+	// import within file scope
+	return hashPassword(pw)
+}
+
+// hashPassword isolates bcrypt to ease future changes
+func hashPassword(pw string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(pw), 14)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
 
 type CreatePostRequest struct {

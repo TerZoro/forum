@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Settings - Forum</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div>
+                    <a href="/">Forum</a>
+                </div>
+                <div>
+                    {{if .User}}
+                        <span>Welcome, {{.User.Username}}</span>
+                        <a href="/posts/new">New Post</a>
+                        <a href="/logout">Logout</a>
+                    {{else}}
+                        <a href="/login">Login</a>
+                        <a href="/signup">Sign Up</a>
+                    {{end}}
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="max-w-800 mx-auto">
+                <h1>Account Settings</h1>
+
+                {{if .Error}}
+                    <div class="error">{{.Error}}</div>
+                {{end}}
+                {{if .Success}}
+                    <div class="success">Settings updated</div>
+                {{end}}
+
+                <form method="POST" action="/settings">
+                    <div class="card p-1 mb-2">
+                        <div class="row">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" value="{{.User.Email}}">
+                            </div>
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" id="username" name="username" value="{{.User.Username}}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-1 mb-2">
+                        <h3 class="mb-1">Change Password</h3>
+                        <div class="row">
+                            <div class="form-group">
+                                <label for="current_password">Current Password</label>
+                                <input type="password" id="current_password" name="current_password" placeholder="Enter current password">
+                            </div>
+                            <div class="form-group">
+                                <label for="new_password">New Password</label>
+                                <input type="password" id="new_password" name="new_password" placeholder="Enter new password">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password</label>
+                            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-1">
+                        <button class="btn" type="submit">Save Changes</button>
+                        <a class="btn btn-secondary" href="/">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

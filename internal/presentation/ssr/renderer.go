@@ -105,7 +105,7 @@ func (rt *Renderer) SignUp(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			rt.renderTemplate(w, "signup.html", map[string]any{
-				"Title": "Sign Up", "Error": "Registration failed",
+				"Title": "Sign Up", "Error": err.Error(),
 			})
 			return
 		}
@@ -127,11 +127,12 @@ func (rt *Renderer) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "bad form", http.StatusBadRequest)
 			return
 		}
-		email := r.Form.Get("email")
+		identifier := r.Form.Get("email")
 		password := r.Form.Get("password")
 
 		resp, err := rt.s.Login(r.Context(), service.LoginRequest{
-			Email: email, Password: password,
+			Email:    identifier,
+			Password: password,
 		})
 		if err != nil {
 			rt.renderTemplate(w, "login.html", map[string]any{
@@ -202,6 +203,88 @@ func (rt *Renderer) NewPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Redirect(w, r, "/posts/"+resp.ID, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (rt *Renderer) Settings(w http.ResponseWriter, r *http.Request) {
+	user := rt.currentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		data := map[string]any{
+			"Title":   "Account Settings",
+			"User":    user,
+			"Success": r.URL.Query().Get("success"),
+		}
+		rt.renderTemplate(w, "user-settings.html", data)
+		return
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+
+		newEmail := strings.TrimSpace(r.Form.Get("email"))
+		newUsername := strings.TrimSpace(r.Form.Get("username"))
+		currentPassword := r.Form.Get("current_password")
+		newPassword := r.Form.Get("new_password")
+		confirm := r.Form.Get("confirm_password")
+
+		if newPassword != "" && newPassword != confirm {
+			rt.renderTemplate(w, "user-settings.html", map[string]any{
+				"Title": "Account Settings",
+				"User":  user,
+				"Error": "new password and confirmation do not match",
+			})
+			return
+		}
+
+		if newPassword != "" && newPassword == currentPassword {
+			rt.renderTemplate(w, "user-settings.html", map[string]any{
+				"Title": "Account Settings",
+				"User":  user,
+				"Error": "new password cannot be the same as current password",
+			})
+			return
+		}
+
+		err := rt.s.UpdateAccount(r.Context(), user.ID, service.UpdateAccountRequest{
+			NewEmail:        newEmail,
+			NewUsername:     newUsername,
+			NewPassword:     newPassword,
+			CurrentPassword: currentPassword,
+		})
+		if err != nil {
+			rt.renderTemplate(w, "user-settings.html", map[string]any{
+				"Title": "Account Settings",
+				"User":  user,
+				"Error": err.Error(),
+			})
+			return
+		}
+
+		// If password was changed, log the user out (invalidate sessions done in service)
+		if newPassword != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "session_id",
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		http.Redirect(w, r, "/settings?success=1", http.StatusSeeOther)
+		return
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}

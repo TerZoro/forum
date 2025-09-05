@@ -54,6 +54,8 @@ func main() {
 	mux.HandleFunc("GET /logout", htmlRender.Logout)
 	mux.HandleFunc("GET /signup", htmlRender.SignUp)
 	mux.HandleFunc("POST /signup", htmlRender.SignUp)
+	mux.HandleFunc("GET /settings", htmlRender.Settings)
+	mux.HandleFunc("POST /settings", htmlRender.Settings)
 	mux.HandleFunc("GET /posts/new", htmlRender.NewPost)
 	mux.HandleFunc("POST /posts", htmlRender.NewPost)
 	mux.HandleFunc("GET /posts/{id}", htmlRender.PostDetail)

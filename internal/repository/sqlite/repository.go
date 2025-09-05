@@ -176,6 +176,37 @@ func (r *Repository) GetAccountsCount(ctx context.Context) (int, error) {
 	return n, err
 }
 
+func (r *Repository) UpdateAccountFields(ctx context.Context, id, newEmail, newUsername, newHashedPassword string) error {
+	r.mu.LockForWrite("account_write")
+	defer r.mu.UnlockForWrite("account_write")
+
+	setParts := make([]string, 0, 3)
+	args := make([]any, 0, 4)
+
+	if newEmail != "" {
+		setParts = append(setParts, "email = ?")
+		args = append(args, newEmail)
+	}
+	if newUsername != "" {
+		setParts = append(setParts, "username = ?")
+		args = append(args, newUsername)
+	}
+	if newHashedPassword != "" {
+		setParts = append(setParts, "password = ?")
+		args = append(args, newHashedPassword)
+	}
+
+	if len(setParts) == 0 {
+		return nil
+	}
+
+	query := "UPDATE accounts SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
+	args = append(args, id)
+
+	_, err := r.db.ExecContext(ctx, query, args...)
+	return err
+}
+
 // Post methods
 func (r *Repository) CreatePost(ctx context.Context, p post.Post) error {
 	r.mu.LockForWrite("post_write")
@@ -935,6 +966,15 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error 
 	defer r.mu.UnlockForWrite("session_write")
 
 	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
+
+	return err
+}
+
+func (r *Repository) DeleteSessionsByUser(ctx context.Context, userId string) error {
+	r.mu.LockForWrite("session_write")
+	defer r.mu.UnlockForWrite("session_write")
+
+	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userId)
 
 	return err
 }
