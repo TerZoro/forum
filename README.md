@@ -133,3 +133,7 @@ forum/
 ## Contributing
 
 This is a personal learning project, but contributions are welcome! Feel free to open issues or pull requests for bug fixes, improvements, or new features.
+
+## License
+
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
