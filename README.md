@@ -2,11 +2,11 @@
 
 A full-stack discussion forum built with Go. Users can sign up, create posts, comment, like/dislike content, and sort posts by various criteria. The application features session-based authentication, a clean responsive UI, and vanilla JavaScript for interactive elements.
 
-![Homepage Screenshot](<img width="1469" height="737" alt="Screenshot 2026-03-10 at 00 45 05" src="https://github.com/user-attachments/assets/374695e4-82bd-4169-9738-6e84a18864e0" />)
+<img src="https://github.com/user-attachments/assets/374695e4-82bd-4169-9738-6e84a18864e0" alt="Homepage Screenshot" style="max-width:100%;"/>
 
-![SignUp Screenshot](<img width="1470" height="738" alt="Screenshot 2026-03-10 at 00 46 07" src="https://github.com/user-attachments/assets/4e0a2087-a534-4c9d-8059-2492ec14a370" />)
+<img src="https://github.com/user-attachments/assets/4e0a2087-a534-4c9d-8059-2492ec14a370" alt="SignUp Screenshot" style="max-width:100%;"/>
 
-![Post Screenshot](<img width="1470" height="739" alt="Screenshot 2026-03-10 at 00 47 22" src="https://github.com/user-attachments/assets/417a394a-9587-4f5c-a08a-4452d219b9dd" />)
+<img src="https://github.com/user-attachments/assets/417a394a-9587-4f5c-a08a-4452d219b9dd" alt="Post Screenshot" style="max-width:100%;"/>
 
 ## Features
 
