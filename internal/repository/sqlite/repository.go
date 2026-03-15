@@ -248,11 +248,6 @@ func (r *Repository) DeletePost(ctx context.Context, postID string) error {
 	}
 	defer tx.Rollback()
 
-	_, err = r.GetPostByID(ctx, postID)
-	if err != nil {
-		return err
-	}
-
 	_, err = tx.ExecContext(ctx, `DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)`, postID)
 	if err != nil {
 		return err
@@ -273,9 +268,12 @@ func (r *Repository) DeletePost(ctx context.Context, postID string) error {
 		return err
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM posts WHERE id = ?`, postID)
+	result, err := tx.ExecContext(ctx, `DELETE FROM posts WHERE id = ?`, postID)
 	if err != nil {
 		return err
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
 	}
 
 	return tx.Commit()
@@ -286,31 +284,14 @@ func (r *Repository) GetPosts(ctx context.Context) ([]post.Post, error) {
 	defer r.mu.UnlockForRead("post_read")
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at
 		 FROM posts p ORDER BY p.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var posts []post.Post
-	for rows.Next() {
-		var p post.Post
-		err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		categories, err := r.getPostCategories(ctx, p.ID)
-		if err != nil {
-			return nil, err
-		}
-		p.Categories = categories
-
-		posts = append(posts, p)
-	}
-
-	return posts, nil
+	return r.scanPosts(ctx, rows)
 }
 
 func (r *Repository) GetPostsByAuthor(ctx context.Context, authorID string) ([]post.Post, error) {
@@ -318,31 +299,14 @@ func (r *Repository) GetPostsByAuthor(ctx context.Context, authorID string) ([]p
 	defer r.mu.UnlockForRead("post_read")
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
+		`SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at
          FROM posts p WHERE p.author_id = ? ORDER BY p.created_at DESC`, authorID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var posts []post.Post
-	for rows.Next() {
-		var p post.Post
-		err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		categories, err := r.getPostCategories(ctx, p.ID)
-		if err != nil {
-			return nil, err
-		}
-		p.Categories = categories
-
-		posts = append(posts, p)
-	}
-
-	return posts, nil
+	return r.scanPosts(ctx, rows)
 }
 
 func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post, error) {
@@ -499,10 +463,27 @@ func (r *Repository) DislikePost(ctx context.Context, postID, userID string) err
 	return tx.Commit()
 }
 
-func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]string, error) {
-	r.mu.LockForRead("post_read")
-	defer r.mu.UnlockForRead("post_read")
+// scanPosts reads all post rows and attaches categories to each.
+// no lock, Caller holds Lock.
+func (r *Repository) scanPosts(ctx context.Context, rows *sql.Rows) ([]post.Post, error) {
+	var posts []post.Post
+	for rows.Next() {
+		var p post.Post
+		if err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, err
+		}
+		categories, err := r.getPostCategories(ctx, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.Categories = categories
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
 
+// don't need lock. Caller alr has lock. Will be deadlock.
+func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT category FROM post_categories WHERE post_id = ?`, postID)
 	if err != nil {
@@ -513,14 +494,13 @@ func (r *Repository) getPostCategories(ctx context.Context, postID string) ([]st
 	var categories []string
 	for rows.Next() {
 		var category string
-		err := rows.Scan(&category)
-		if err != nil {
+		if err := rows.Scan(&category); err != nil {
 			return nil, err
 		}
 		categories = append(categories, category)
 	}
 
-	return categories, nil
+	return categories, rows.Err()
 }
 
 func (r *Repository) FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error) {
@@ -556,24 +536,7 @@ func (r *Repository) FilterPosts(ctx context.Context, sortMethod string) ([]post
 	}
 	defer rows.Close()
 
-	var posts []post.Post
-	for rows.Next() {
-		var p post.Post
-		err := rows.Scan(&p.ID, &p.Title, &p.Content, &p.AuthorID, &p.Likes, &p.Dislikes, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		categories, err := r.getPostCategories(ctx, p.ID)
-		if err != nil {
-			return nil, err
-		}
-		p.Categories = categories
-
-		posts = append(posts, p)
-	}
-
-	return posts, nil
+	return r.scanPosts(ctx, rows)
 }
 
 func (r *Repository) UpdatePost(ctx context.Context, postID, authorID, newTitle, newContent string, newCategories []string) error {
@@ -672,19 +635,17 @@ func (r *Repository) DeleteComment(ctx context.Context, commentID string) error 
 	}
 	defer tx.Rollback()
 
-	_, err = r.GetCommentByID(ctx, commentID)
-	if err != nil {
-		return err
-	}
-
 	_, err = tx.ExecContext(ctx, `DELETE FROM comment_likes WHERE comment_id = ?`, commentID)
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM comments WHERE id = ?`, commentID)
+	result, err := tx.ExecContext(ctx, `DELETE FROM comments WHERE id = ?`, commentID)
 	if err != nil {
 		return err
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
 	}
 
 	return tx.Commit()
@@ -707,14 +668,13 @@ func (r *Repository) GetCommentsByPost(ctx context.Context, postID string) ([]co
 	var comments []comment.Comment
 	for rows.Next() {
 		var c comment.Comment
-		err := rows.Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt)
-		if err != nil {
+		if err := rows.Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		comments = append(comments, c)
 	}
 
-	return comments, nil
+	return comments, rows.Err()
 }
 
 func (r *Repository) GetCommentsByAuthor(ctx context.Context, authorID string) ([]comment.Comment, error) {
@@ -734,14 +694,13 @@ func (r *Repository) GetCommentsByAuthor(ctx context.Context, authorID string) (
 	var comments []comment.Comment
 	for rows.Next() {
 		var c comment.Comment
-		err := rows.Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt)
-		if err != nil {
+		if err := rows.Scan(&c.ID, &c.Content, &c.PostID, &c.AuthorID, &c.Likes, &c.Dislikes, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		comments = append(comments, c)
 	}
 
-	return comments, nil
+	return comments, rows.Err()
 }
 
 func (r *Repository) LikeComment(ctx context.Context, commentID, userID string) error {

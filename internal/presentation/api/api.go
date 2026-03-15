@@ -46,7 +46,10 @@ func (rt *API) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(SignUpResponse{ID: resp.ID})
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(SignUpResponse{ID: resp.ID}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 type LoginRequest struct {
@@ -77,13 +80,7 @@ func (rt *API) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(LoginResponse{
-		ID:        resp.ID,
-		Email:     resp.Email,
-		Username:  resp.Username,
-		SessionID: resp.SessionID,
-	})
-
+	// Set cookie BEFORE writing body — headers must be set before any body write.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    resp.SessionID,
@@ -92,6 +89,16 @@ func (rt *API) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   86400, // 24 hours in seconds (24 * 60 * 60)
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(LoginResponse{
+		ID:        resp.ID,
+		Email:     resp.Email,
+		Username:  resp.Username,
+		SessionID: resp.SessionID,
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) Logout(w http.ResponseWriter, r *http.Request) {
@@ -159,9 +166,10 @@ func (rt *API) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(CreatePostResponse{
-		ID: resp.ID,
-	})
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(CreatePostResponse{ID: resp.ID}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) DeletePost(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +212,10 @@ func (rt *API) GetPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(posts)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(posts); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) FilterPosts(w http.ResponseWriter, r *http.Request) {
@@ -219,7 +230,10 @@ func (rt *API) FilterPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(posts)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(posts); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) GetPostByID(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +249,10 @@ func (rt *API) GetPostByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(post)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(post); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) LikePost(w http.ResponseWriter, r *http.Request) {
@@ -309,13 +326,18 @@ func (rt *API) CreateComment(w http.ResponseWriter, r *http.Request) {
 		PostID:  req.PostID,
 	}, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrValidation) {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
-	json.NewEncoder(w).Encode(CreateCommentResponse{
-		ID: resp.ID,
-	})
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(CreateCommentResponse{ID: resp.ID}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) DeleteComment(w http.ResponseWriter, r *http.Request) {
@@ -364,7 +386,10 @@ func (rt *API) GetComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(comments)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(comments); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) GetCommentByID(w http.ResponseWriter, r *http.Request) {
@@ -380,7 +405,10 @@ func (rt *API) GetCommentByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(comment)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(comment); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (rt *API) LikeComment(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package comment
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ type Comment struct {
 }
 
 func New(content, postID, authorID string) (Comment, error) {
+	content = strings.TrimSpace(content)
 	if content == "" {
 		return Comment{}, errors.New("content empty")
 	}
@@ -42,6 +44,7 @@ func New(content, postID, authorID string) (Comment, error) {
 }
 
 func (c *Comment) UpdateContent(content string) error {
+	content = strings.TrimSpace(content)
 	if content == "" {
 		return errors.New("content cannot be empty")
 	}

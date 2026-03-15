@@ -2,6 +2,7 @@ package post
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,8 @@ type Post struct {
 }
 
 func New(title, content, authorID string, categories []string) (Post, error) {
+	title = strings.TrimSpace(title)
+	content = strings.TrimSpace(content)
 	if title == "" {
 		return Post{}, errors.New("title empty")
 	}
@@ -44,6 +47,7 @@ func New(title, content, authorID string, categories []string) (Post, error) {
 }
 
 func (p *Post) UpdateContent(content string) error {
+	content = strings.TrimSpace(content)
 	if content == "" {
 		return errors.New("content cannot be empty")
 	}
@@ -53,6 +57,7 @@ func (p *Post) UpdateContent(content string) error {
 }
 
 func (p *Post) UpdateTitle(title string) error {
+	title = strings.TrimSpace(title)
 	if title == "" {
 		return errors.New("title cannot be empty")
 	}

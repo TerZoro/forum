@@ -78,9 +78,9 @@
                             <form method="POST" action="/posts/{{.Post.ID}}/comments" class="mb-2">
                                 <div class="form-group">
                                     <label for="content">Add a comment:</label>
-                                    <textarea id="content" name="content" rows="3" required></textarea>
+                                    <textarea id="comment-content" name="content" rows="3" required></textarea>
                                 </div>
-                                <button type="submit" class="btn">Post Comment</button>
+                                <button id="comment-submit" type="submit" class="btn" disabled>Post Comment</button>
                             </form>
                         {{else}}
                             <p><a href="/login">Login</a> to add a comment.</p>

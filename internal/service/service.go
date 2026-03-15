@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -15,6 +16,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// ErrValidation marks errors that are the caller's fault (bad input).
+// Handlers can check errors.Is(err, ErrValidation) to return 400 instead of 500.
+var ErrValidation = errors.New("validation error")
 
 type Repository interface {
 	SignUp(ctx context.Context, a account.Account) (string, error)
@@ -279,17 +284,14 @@ type UpdatePostRequest struct {
 }
 
 func (s *Service) UpdatePost(ctx context.Context, postID string, req UpdatePostRequest, userID string) error {
-	// Validate input
+	req.Title = strings.TrimSpace(req.Title)
+	req.Content = strings.TrimSpace(req.Content)
 	if req.Title == "" {
 		return errors.New("title cannot be empty")
 	}
 	if req.Content == "" {
 		return errors.New("content cannot be empty")
 	}
-
-	// Trim whitespace
-	req.Title = strings.TrimSpace(req.Title)
-	req.Content = strings.TrimSpace(req.Content)
 
 	err := s.repo.UpdatePost(ctx, postID, userID, req.Title, req.Content, req.Categories)
 	if err == sql.ErrNoRows {
@@ -348,7 +350,7 @@ type CreateCommentResponse struct {
 func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, userID string) (CreateCommentResponse, error) {
 	c, err := comment.New(req.Content, req.PostID, userID)
 	if err != nil {
-		return CreateCommentResponse{}, err
+		return CreateCommentResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
 	}
 
 	err = s.repo.CreateComment(ctx, c)
@@ -368,13 +370,10 @@ type UpdateCommentRequest struct {
 }
 
 func (s *Service) UpdateComment(ctx context.Context, commentID string, req UpdateCommentRequest, userID string) error {
-	// Validate input
-	if req.Content == "" {
-		return errors.New("content cannot be empty")
-	}
-
-	// Trim whitespace
 	req.Content = strings.TrimSpace(req.Content)
+	if req.Content == "" {
+		return fmt.Errorf("%w: content cannot be empty", ErrValidation)
+	}
 
 	err := s.repo.UpdateComment(ctx, commentID, userID, req.Content)
 	if err == sql.ErrNoRows {

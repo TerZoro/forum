@@ -495,7 +495,7 @@ func (rt *Renderer) CreateComment(w http.ResponseWriter, r *http.Request) {
 		Content: content, PostID: postID,
 	}, user.ID)
 	if err != nil {
-		http.Error(w, "failed to add comment", http.StatusInternalServerError)
+		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)

@@ -75,6 +75,12 @@ body {
     background-color: var(--gt-sun);
 }
 
+.btn:disabled {
+    background-color: #aaa;
+    color: #666;
+    cursor: not-allowed;
+}
+
 /* Specific actions */
 .btn-like {
     background-color: var(--gt-cloud);
