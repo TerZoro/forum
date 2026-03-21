@@ -42,7 +42,11 @@ func (rt *API) SignUp(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrValidation) {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -76,17 +80,20 @@ func (rt *API) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrCredentials) {
+			status = http.StatusUnauthorized
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
-	// Set cookie BEFORE writing body — headers must be set before any body write.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    resp.SessionID,
 		Path:     "/",
 		HttpOnly: true,
-		MaxAge:   86400, // 24 hours in seconds (24 * 60 * 60)
+		MaxAge:   86400,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -191,7 +198,7 @@ func (rt *API) DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if post.AuthorID != user.ID {
+	if post.AuthorID != user.ID && !user.IsAdmin {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -359,7 +366,7 @@ func (rt *API) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if comment.AuthorID != user.ID {
+	if comment.AuthorID != user.ID && !user.IsAdmin {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -435,8 +442,6 @@ func (rt *API) LikeComment(w http.ResponseWriter, r *http.Request) {
 
 func (rt *API) DislikeComment(w http.ResponseWriter, r *http.Request) {
 	commentID, err := rt.getIDFromPath(r, 5)
-	//like       /api/posts/101/comments/12/dislike
-	//for me: 0    1     2   3     4     5    6
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

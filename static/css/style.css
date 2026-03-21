@@ -309,6 +309,15 @@ body {
     text-decoration: none;
 }
 
+.link-user {
+    color: var(--gt-gold);
+    text-decoration: none;
+}
+
+.link-user:hover {
+    text-decoration: underline;
+}
+
 .comment-actions {
     display: flex;
     gap: 0.5rem;

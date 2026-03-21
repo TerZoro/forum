@@ -7,25 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <nav class="nav">
-                <div>
-                    <a href="/">Forum</a>
-                </div>
-                <div>
-                    {{if .User}}
-                        <span>Welcome, {{.User.Username}}</span>
-                        <a href="/posts/new">New Post</a>
-                        <a href="/logout">Logout</a>
-                    {{else}}
-                        <a href="/login">Login</a>
-                        <a href="/signup">Sign Up</a>
-                    {{end}}
-                </div>
-            </nav>
-        </div>
-    </header>
+    {{template "nav" .}}
     
     <main class="main">
         <div class="container">
@@ -34,7 +16,7 @@
                     <article class="post">
                         <h1 class="post-title">{{.Post.Title}}</h1>
                         <div class="post-meta">
-                            <span>By {{with index .Authors .Post.AuthorID}}{{.}}{{else}}{{.Post.AuthorID}}{{end}}</span>
+                            <span>By {{with index .Authors .Post.AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.Post.AuthorID}}{{end}}</span>
                             <span>•</span>
                             <span>{{.Post.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
                             {{if .Post.UpdatedAt.After .Post.CreatedAt}}
@@ -91,7 +73,7 @@
                                 {{range .Comments}}
                                     <div class="comment">
                                         <div class="comment-meta">
-                                            <strong>{{with index $.Authors .AuthorID}}{{.}}{{else}}{{.AuthorID}}{{end}}</strong>
+                                            <strong>{{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</strong>
                                             <span>•</span>
                                             <span>{{.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
                                         </div>

@@ -937,3 +937,11 @@ func (r *Repository) DeleteSessionsByUser(ctx context.Context, userId string) er
 
 	return err
 }
+
+func (r *Repository) DeleteExpiredSessions(ctx context.Context) error {
+	r.mu.LockForWrite("session_write")
+	defer r.mu.UnlockForWrite("session_write")
+
+	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= datetime('now')`)
+	return err
+}

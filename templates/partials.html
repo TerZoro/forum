@@ -1,0 +1,22 @@
+{{define "nav"}}
+<header class="header">
+    <div class="container">
+        <nav class="nav">
+            <div>
+                <a href="/">Forum</a>
+            </div>
+            <div>
+                {{if .User}}
+                    <span>Welcome, {{.User.Username}}{{if .User.IsAdmin}} <span class="chip">Admin</span>{{end}}</span>
+                    <a href="/users/{{.User.Username}}">Profile</a>
+                    <a href="/posts/new">New Post</a>
+                    <a href="/logout">Logout</a>
+                {{else}}
+                    <a href="/login">Login</a>
+                    <a href="/signup">Sign Up</a>
+                {{end}}
+            </div>
+        </nav>
+    </div>
+</header>
+{{end}}

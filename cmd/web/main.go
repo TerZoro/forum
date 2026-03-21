@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"forum/internal/presentation/api"
 	"forum/internal/presentation/ssr"
@@ -9,6 +10,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -99,6 +101,16 @@ func main() {
 	mux.HandleFunc("POST /api/posts/{id}/comments/{commentId}/dislike", restAPI.DislikeComment)
 
 	log.Println("All routes registered successfully")
+
+	// Clean up expired sessions every hour in the background
+	go func() {
+		for {
+			time.Sleep(time.Hour)
+			if err := repo.DeleteExpiredSessions(context.Background()); err != nil {
+				log.Println("session cleanup error:", err)
+			}
+		}
+	}()
 
 	restServer := http.Server{
 		Addr:    ":8080",

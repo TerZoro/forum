@@ -6,6 +6,7 @@ import (
 	"forum/internal/domain/post"
 	"forum/internal/service"
 	"html/template"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -308,7 +309,10 @@ func (rt *Renderer) DeletePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	_ = rt.s.DeletePost(r.Context(), postID)
+	if err := rt.s.DeletePost(r.Context(), postID); err != nil {
+		http.Error(w, "failed to delete post", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -384,7 +388,9 @@ func (rt *Renderer) LikePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = rt.s.LikePost(r.Context(), postID, user.ID)
+	if err := rt.s.LikePost(r.Context(), postID, user.ID); err != nil {
+		log.Println("LikePost error:", err)
+	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
@@ -401,7 +407,9 @@ func (rt *Renderer) DislikePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = rt.s.DislikePost(r.Context(), postID, user.ID)
+	if err := rt.s.DislikePost(r.Context(), postID, user.ID); err != nil {
+		log.Println("DislikePost error:", err)
+	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
@@ -520,7 +528,10 @@ func (rt *Renderer) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	_ = rt.s.DeleteComment(r.Context(), commentID)
+	if err := rt.s.DeleteComment(r.Context(), commentID); err != nil {
+		http.Error(w, "failed to delete comment", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
@@ -538,7 +549,9 @@ func (rt *Renderer) LikeComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = rt.s.LikeComment(r.Context(), commentID, user.ID)
+	if err := rt.s.LikeComment(r.Context(), commentID, user.ID); err != nil {
+		log.Println("LikeComment error:", err)
+	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 
@@ -556,7 +569,9 @@ func (rt *Renderer) DislikeComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = rt.s.DislikeComment(r.Context(), commentID, user.ID)
+	if err := rt.s.DislikeComment(r.Context(), commentID, user.ID); err != nil {
+		log.Println("DislikeComment error:", err)
+	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 }
 

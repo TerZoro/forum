@@ -7,26 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <nav class="nav">
-                <div>
-                    <a href="/">Forum</a>
-                </div>
-                <div>
-                    {{if .User}}
-                        <span>Welcome, {{.User.Username}}{{if .User.IsAdmin}} <span class="chip">Admin</span>{{end}}</span>
-                        <a href="/users/{{.User.Username}}">Profile</a>
-                        <a href="/posts/new">New Post</a>
-                        <a href="/logout">Logout</a>
-                    {{else}}
-                        <a href="/login">Login</a>
-                        <a href="/signup">Sign Up</a>
-                    {{end}}
-                </div>
-            </nav>
-        </div>
-    </header>
+    {{template "nav" .}}
     
     <main class="main">
         <div class="container">
@@ -61,7 +42,7 @@
                                     </a>
                                 </h2>
                                 <div class="post-meta">
-                                    <span>By {{with index $.Authors .AuthorID}}{{.}}{{else}}{{.AuthorID}}{{end}}</span>
+                                    <span>By {{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</span>
                                     <span>•</span>
                                     <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                                     {{if .UpdatedAt.After .CreatedAt}}

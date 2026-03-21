@@ -21,6 +21,10 @@ import (
 // Handlers can check errors.Is(err, ErrValidation) to return 400 instead of 500.
 var ErrValidation = errors.New("validation error")
 
+// ErrCredentials marks failed authentication (wrong email/password).
+// Handlers can check errors.Is(err, ErrCredentials) to return 401 instead of 500.
+var ErrCredentials = errors.New("invalid credentials")
+
 type Repository interface {
 	SignUp(ctx context.Context, a account.Account) (string, error)
 
@@ -54,6 +58,7 @@ type Repository interface {
 	CreateSession(ctx context.Context, s session.Session) error
 	GetSession(ctx context.Context, sessionID string) (session.Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
+	DeleteExpiredSessions(ctx context.Context) error
 
 	GetAccountsCount(ctx context.Context) (int, error)
 }
@@ -77,14 +82,23 @@ type SignUpResponse struct {
 }
 
 func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse, error) {
-	a, err := account.New(req.Email, req.Username, req.Password)
-	if err != nil {
-		return SignUpResponse{}, err
+	// Validate inputs first — fail fast before expensive bcrypt hashing.
+	if req.Email == "" {
+		return SignUpResponse{}, fmt.Errorf("%w: email is required", ErrValidation)
+	}
+	if !looksLikeEmail(req.Email) {
+		return SignUpResponse{}, fmt.Errorf("%w: invalid email format", ErrValidation)
+	}
+	if req.Username == "" {
+		return SignUpResponse{}, fmt.Errorf("%w: username is required", ErrValidation)
+	}
+	if err := validatePasswordStrength(req.Password); err != nil {
+		return SignUpResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
 	}
 
-	// Password strength: min 8 chars, at least one letter and one digit
-	if err := validatePasswordStrength(req.Password); err != nil {
-		return SignUpResponse{}, err
+	a, err := account.New(req.Email, req.Username, req.Password)
+	if err != nil {
+		return SignUpResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
 	}
 
 	// Make the first registered account an admin
@@ -105,9 +119,7 @@ func validatePasswordStrength(pw string) error {
 	if len(pw) < 8 {
 		return errors.New("password must be at least 8 characters")
 	}
-	var hasLetter = regexp.MustCompile(`[A-Za-z]`).MatchString
-	var hasDigit = regexp.MustCompile(`\d`).MatchString
-	if !hasLetter(pw) || !hasDigit(pw) {
+	if !hasLetterRE.MatchString(pw) || !hasDigitRE.MatchString(pw) {
 		return errors.New("password must include letters and numbers")
 	}
 	return nil
@@ -135,11 +147,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		a, err = s.repo.GetAccountByUsername(ctx, identifier)
 	}
 	if err != nil {
-		return LoginResponse{}, errors.New("invalid credentials")
+		return LoginResponse{}, fmt.Errorf("%w", ErrCredentials)
 	}
 
 	if !a.CheckPassword(req.Password) {
-		return LoginResponse{}, errors.New("invalid credentials")
+		return LoginResponse{}, fmt.Errorf("%w", ErrCredentials)
 	}
 
 	// Create session (24 hours)
@@ -158,6 +170,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 }
 
 var emailRE = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+var hasLetterRE = regexp.MustCompile(`[A-Za-z]`)
+var hasDigitRE = regexp.MustCompile(`\d`)
 
 func looksLikeEmail(s string) bool {
 	return emailRE.MatchString(s)
