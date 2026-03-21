@@ -28,7 +28,7 @@
                 <section class="mb-2">
                     <h3 class="mb-1">Posts</h3>
                     <div class="posts">
-                        {{if .Posts}}
+                        {{- if .Posts -}}
                             {{range .Posts}}
                                 <article class="post">
                                     <h2 class="post-title">
@@ -50,10 +50,10 @@
                                         <span><img src="/static/images/like.png" alt="Like" class="icon"> {{.Likes}} <img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</span>
                                     </div>
                                     <div class="post-content">
-                                        {{if gt (len .Content) 200}}
+                                        {{- if gt (len .Content) 200 -}}
                                             {{printf "%.200s" .Content}}...
-                                        {{else}}
-                                            {{.Content}}
+                                        {{- else -}}
+                                            {{- .Content -}}
                                         {{end}}
                                     </div>
                                     <div class="post-actions">
@@ -82,7 +82,7 @@
                                 <article class="post">
                                     <div class="post-meta">
                                         {{ $p := index $.CommentPosts .PostID }}
-                                        <span>On post <a href="/posts/{{.PostID}}" class="link-plain">{{if $p.Title}}{{$p.Title}}{{else}}{{.PostID}}{{end}}</a></span>
+                                        <span>On post <a href="/posts/{{.PostID}}#comment-{{.ID}}" class="link-user">{{if $p.Title}}{{$p.Title}}{{else}}{{.PostID}}{{end}}</a></span>
                                         <span>by {{with index $.Authors $p.AuthorID}}{{.}}{{else}}{{$p.AuthorID}}{{end}}</span>
                                         <span>•</span>
                                         <span>{{.CreatedAt.Format "Jan 02, 2006 15:04"}}</span>

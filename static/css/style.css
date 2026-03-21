@@ -33,6 +33,9 @@ body {
     background-color: var(--gt-night);
     color: var(--gt-white);
     padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .nav {
@@ -158,6 +161,11 @@ body {
 
 .post-content {
     margin-bottom: 1rem;
+    white-space: pre-wrap;
+}
+
+.comment-content {
+    white-space: pre-wrap;
 }
 
 .post-actions {

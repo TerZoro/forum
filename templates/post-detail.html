@@ -33,9 +33,7 @@
                             {{end}}
                         </div>
                         
-                        <div class="post-content">
-                            {{.Post.Content}}
-                        </div>
+                        <div class="post-content"> {{- .Post.Content -}} </div>
                         
                         <div class="post-actions">
                             <form method="POST" action="/posts/{{.Post.ID}}/like" class="inline">
@@ -71,15 +69,13 @@
                         <div class="comments">
                             {{if .Comments}}
                                 {{range .Comments}}
-                                    <div class="comment">
+                                    <div class="comment" id="comment-{{.ID}}">
                                         <div class="comment-meta">
                                             <strong>{{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</strong>
                                             <span>•</span>
                                             <span>{{.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
                                         </div>
-                                        <div class="comment-content">
-                                            {{.Content}}
-                                        </div>
+                                        <div class="comment-content"> {{- .Content -}} </div>
                                         <div class="comment-actions">
                                             <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/like" class="inline">
                                                 <button type="submit" class="btn btn-like btn-sm {{with index $.CommentVotes .ID}}{{if eq . "like"}}is-active{{end}}{{end}}" data-like-comment-id="{{.ID}}"><img src="/static/images/like.png" alt="Like" class="icon"> {{.Likes}}</button>

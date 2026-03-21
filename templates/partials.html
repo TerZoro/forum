@@ -7,8 +7,7 @@
             </div>
             <div>
                 {{if .User}}
-                    <span>Welcome, {{.User.Username}}{{if .User.IsAdmin}} <span class="chip">Admin</span>{{end}}</span>
-                    <a href="/users/{{.User.Username}}">Profile</a>
+                    <a href="/users/{{.User.Username}}">{{.User.Username}}{{if .User.IsAdmin}} <span class="chip">Admin</span>{{end}}</a>
                     <a href="/posts/new">New Post</a>
                     <a href="/logout">Logout</a>
                 {{else}}

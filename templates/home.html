@@ -20,7 +20,6 @@
                     </div>
                 {{end}}
                 
-                <!-- Filter Controls -->
                 <div class="card p-1 mb-2">
                     <h3 class="mb-1">Sort Posts</h3>
                     <div class="flex gap-sm flex-wrap">
@@ -55,11 +54,11 @@
                                     <span><img src="/static/images/like.png" alt="Like" class="icon"> {{.Likes}} <img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</span>
                                 </div>
                                 <div class="post-content">
-                                    {{if gt (len .Content) 200}}
+                                    {{- if gt (len .Content) 200 -}}
                                         {{printf "%.200s" .Content}}...
-                                    {{else}}
+                                    {{- else -}}
                                         {{.Content}}
-                                    {{end}}
+                                    {{- end -}}
                                 </div>
                                 <div class="post-actions">
                                     <a href="/posts/{{.ID}}" class="btn">Read More</a>

@@ -1,4 +1,3 @@
-// Disable submit buttons until required fields have non-whitespace content
 function initFormGuard(fieldsSelector, buttonSelector) {
     const fields = document.querySelectorAll(fieldsSelector);
     const btn = document.querySelector(buttonSelector);
@@ -15,7 +14,16 @@ function initFormGuard(fieldsSelector, buttonSelector) {
 initFormGuard('#comment-content', '#comment-submit');
 initFormGuard('#title, #content', '#post-submit');
 
-// Simple post filtering - just highlight current sort option
+const commentField = document.getElementById('comment-content');
+if (commentField) {
+    commentField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.closest('form').requestSubmit();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const currentSort = urlParams.get('sort') || 'newest';
