@@ -17,12 +17,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ErrValidation marks errors that are the caller's fault (bad input).
-// Handlers can check errors.Is(err, ErrValidation) to return 400 instead of 500.
+// errors that are the caller's fault (bad input).
 var ErrValidation = errors.New("validation error")
 
-// ErrCredentials marks failed authentication (wrong email/password).
-// Handlers can check errors.Is(err, ErrCredentials) to return 401 instead of 500.
+// failed authentication (wrong email/password).
 var ErrCredentials = errors.New("invalid credentials")
 
 type Repository interface {
@@ -82,7 +80,6 @@ type SignUpResponse struct {
 }
 
 func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse, error) {
-	// Validate inputs first — fail fast before expensive bcrypt hashing.
 	if req.Email == "" {
 		return SignUpResponse{}, fmt.Errorf("%w: email is required", ErrValidation)
 	}
@@ -101,7 +98,6 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 		return SignUpResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
 	}
 
-	// Make the first registered account an admin
 	count, err := s.repo.GetAccountsCount(ctx)
 	if err == nil && count == 0 {
 		a.IsAdmin = true

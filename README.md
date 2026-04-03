@@ -90,6 +90,45 @@ A full-stack discussion forum built with Go. Users can sign up, create posts, co
 5. **Open in your browser**  
    Visit `http://localhost:8080` to start using the forum.
 
+## Running with Docker
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+
+### Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/TerZoro/forum.git
+   cd forum
+   ```
+
+2. **Make the scripts executable**
+   ```bash
+   chmod +x docker_builder.sh docker_runner.sh
+   ```
+
+3. **Build the Docker image**
+   ```bash
+   ./docker_builder.sh
+   ```
+   This builds the image tagged as `forum:v1`.
+
+4. **Run the container**
+   ```bash
+   ./docker_runner.sh
+   ```
+   - If `forumdb.db` doesn't exist yet, it will be created automatically.
+   - The database file is mounted as a volume so your data persists between runs.
+   - The app will be available at `http://localhost:8080`.
+
+5. **Stop the container**
+   Press `Ctrl+C` in the terminal. The container is removed automatically (`--rm` flag).
+
+> **Note:** Run `docker_builder.sh` once (or whenever you make code changes), then use `docker_runner.sh` each time you want to start the app.
+
+---
+
 ## Usage
 
 1. **Sign Up** – Create a new account using the sign-up page.
@@ -125,6 +164,9 @@ forum/
 ├── static/                  # CSS, JavaScript, images
 ├── templates/               # HTML templates
 ├── forumdb.db               # SQLite database file (optional)
+├── Dockerfile               # Multi-stage Docker build
+├── docker_builder.sh        # Script to build the Docker image
+├── docker_runner.sh         # Script to run the container with volume mount
 ├── go.mod                   # Module definition
 ├── go.sum                   # Module checksums
 └── README.md                # This file
