@@ -98,6 +98,9 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 	if req.Username == "" {
 		return SignUpResponse{}, validationError("Username is required")
 	}
+	if len(req.Username) > 32 {
+		return SignUpResponse{}, validationError("Username must be 32 characters or fewer")
+	}
 	if err := validatePasswordStrength(req.Password); err != nil {
 		return SignUpResponse{}, validationError(err.Error())
 	}
@@ -238,6 +241,12 @@ func (s *Service) UpdateAccount(ctx context.Context, userID string, req UpdateAc
 	}
 
 	if err := s.repo.UpdateAccountFields(ctx, userID, newEmail, newUsername, newHashed); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: accounts.email") {
+			return validationError("Email already in use")
+		}
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: accounts.username") {
+			return validationError("Username already taken")
+		}
 		return err
 	}
 
@@ -296,8 +305,14 @@ func (s *Service) UpdatePost(ctx context.Context, postID string, req UpdatePostR
 	if req.Title == "" {
 		return errors.New("title cannot be empty")
 	}
+	if len(req.Title) > 200 {
+		return errors.New("title must be 200 characters or fewer")
+	}
 	if req.Content == "" {
 		return errors.New("content cannot be empty")
+	}
+	if len(req.Content) > 10000 {
+		return errors.New("content must be 10000 characters or fewer")
 	}
 
 	err := s.repo.UpdatePost(ctx, postID, userID, req.Title, req.Content, req.Categories)
@@ -380,6 +395,9 @@ func (s *Service) UpdateComment(ctx context.Context, commentID string, req Updat
 	req.Content = strings.TrimSpace(req.Content)
 	if req.Content == "" {
 		return validationError("Content cannot be empty")
+	}
+	if len(req.Content) > 2000 {
+		return validationError("Comment must be 2000 characters or fewer")
 	}
 
 	err := s.repo.UpdateComment(ctx, commentID, userID, req.Content)

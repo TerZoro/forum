@@ -362,11 +362,12 @@ func (rt *Renderer) PostDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"Title":    "Post",
-		"User":     user,
-		"Post":     p,
-		"Comments": comments,
-		"Authors":  authors,
+		"Title":        "Post",
+		"User":         user,
+		"Post":         p,
+		"Comments":     comments,
+		"Authors":      authors,
+		"CommentError": r.URL.Query().Get("comment_error"),
 	}
 
 	// Include vote state if logged in
@@ -515,7 +516,7 @@ func (rt *Renderer) CreateComment(w http.ResponseWriter, r *http.Request) {
 		Content: content, PostID: postID,
 	}, user.ID)
 	if err != nil {
-		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
+		http.Redirect(w, r, "/posts/"+postID+"?comment_error="+err.Error(), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)

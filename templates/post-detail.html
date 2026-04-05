@@ -57,10 +57,13 @@
                         <h2>Comments ({{len .Comments}})</h2>
                         
                         {{if .User}}
+                            {{if .CommentError}}
+                                <div class="error mb-1">{{.CommentError}}</div>
+                            {{end}}
                             <form method="POST" action="/posts/{{.Post.ID}}/comments" class="mb-2">
                                 <div class="form-group">
                                     <label for="content">Add a comment:</label>
-                                    <textarea id="comment-content" name="content" rows="3" required></textarea>
+                                    <textarea id="comment-content" name="content" rows="3" maxlength="2000" required></textarea>
                                 </div>
                                 <button id="comment-submit" type="submit" class="btn" disabled>Post Comment</button>
                             </form>

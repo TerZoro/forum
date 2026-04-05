@@ -9,7 +9,9 @@
                 {{if .User}}
                     <a href="/users/{{.User.Username}}">{{.User.Username}}{{if .User.IsAdmin}} <span class="chip">Admin</span>{{end}}</a>
                     <a href="/posts/new">New Post</a>
-                    <a href="/logout">Logout</a>
+                    <form method="POST" action="/logout" class="inline">
+                        <button type="submit" class="btn-nav-logout">Logout</button>
+                    </form>
                 {{else}}
                     <a href="/login">Login</a>
                     <a href="/signup">Sign Up</a>

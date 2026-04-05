@@ -331,6 +331,21 @@ body {
     gap: 0.5rem;
 }
 
+/* Logout nav button — looks like a nav link, not a button */
+.btn-nav-logout {
+    background: none;
+    border: none;
+    color: var(--gt-gold);
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: 1rem;
+    padding: 0;
+}
+
+.btn-nav-logout:hover {
+    color: var(--gt-sun);
+}
+
 /* Error page */
 .error-page {
     margin-top: 4rem;

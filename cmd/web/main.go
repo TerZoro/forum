@@ -58,7 +58,7 @@ func main() {
 	mux.HandleFunc("GET /", htmlRender.Home)
 	mux.HandleFunc("GET /login", htmlRender.Login)
 	mux.HandleFunc("POST /login", htmlRender.Login)
-	mux.HandleFunc("GET /logout", htmlRender.Logout)
+	mux.HandleFunc("POST /logout", htmlRender.Logout)
 	mux.HandleFunc("GET /signup", htmlRender.SignUp)
 	mux.HandleFunc("POST /signup", htmlRender.SignUp)
 	mux.HandleFunc("GET /settings", htmlRender.Settings)
