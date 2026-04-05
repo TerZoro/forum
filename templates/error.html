@@ -1,0 +1,24 @@
+{{define "error.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Code}} - Forum</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    {{template "nav" .}}
+    <main class="main">
+        <div class="container">
+            <div class="error-page card p-1 max-w-400 mx-auto mt-2 text-center">
+                <div class="error-page-code">{{.Code}}</div>
+                <h2 class="error-page-title mb-1">{{.Title}}</h2>
+                <p class="error-page-message mb-2">{{.Message}}</p>
+                <a href="/" class="btn">Go Home</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
+{{end}}

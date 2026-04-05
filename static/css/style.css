@@ -331,6 +331,27 @@ body {
     gap: 0.5rem;
 }
 
+/* Error page */
+.error-page {
+    margin-top: 4rem;
+}
+
+.error-page-code {
+    font-size: 5rem;
+    font-weight: bold;
+    color: var(--gt-gold);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.error-page-title {
+    color: var(--gt-ink);
+}
+
+.error-page-message {
+    color: var(--gt-deep);
+}
+
 /* Icons */
 .icon {
     width: 18px;

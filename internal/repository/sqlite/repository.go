@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"forum/internal/domain/account"
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
@@ -177,33 +178,24 @@ func (r *Repository) GetAccountsCount(ctx context.Context) (int, error) {
 }
 
 func (r *Repository) UpdateAccountFields(ctx context.Context, id, newEmail, newUsername, newHashedPassword string) error {
-	r.mu.LockForWrite("account_write")
-	defer r.mu.UnlockForWrite("account_write")
-
-	setParts := make([]string, 0, 3)
-	args := make([]any, 0, 4)
-
-	if newEmail != "" {
-		setParts = append(setParts, "email = ?")
-		args = append(args, newEmail)
-	}
-	if newUsername != "" {
-		setParts = append(setParts, "username = ?")
-		args = append(args, newUsername)
-	}
-	if newHashedPassword != "" {
-		setParts = append(setParts, "password = ?")
-		args = append(args, newHashedPassword)
-	}
-
-	if len(setParts) == 0 {
+	if newEmail == "" && newUsername == "" && newHashedPassword == "" {
 		return nil
 	}
 
-	query := "UPDATE accounts SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
-	args = append(args, id)
+	r.mu.LockForWrite("account_write")
+	defer r.mu.UnlockForWrite("account_write")
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE accounts SET
+			email    = CASE WHEN ? != '' THEN ? ELSE email    END,
+			username = CASE WHEN ? != '' THEN ? ELSE username END,
+			password = CASE WHEN ? != '' THEN ? ELSE password END
+		WHERE id = ?`,
+		newEmail, newEmail,
+		newUsername, newUsername,
+		newHashedPassword, newHashedPassword,
+		id,
+	)
 	return err
 }
 
@@ -331,136 +323,11 @@ func (r *Repository) GetPostByID(ctx context.Context, postID string) (post.Post,
 }
 
 func (r *Repository) LikePost(ctx context.Context, postID, userID string) error {
-	r.mu.LockForWrite("like_operation")
-	defer r.mu.UnlockForWrite("like_operation")
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var existingLike *bool
-	err = tx.QueryRowContext(ctx,
-		`SELECT is_like FROM post_likes WHERE post_id = ? AND user_id = ?`,
-		postID, userID).Scan(&existingLike)
-
-	if err == sql.ErrNoRows {
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO post_likes (post_id, user_id, is_like) VALUES (?, ?, ?)`,
-			postID, userID, true)
-		if err != nil {
-			return err
-		}
-
-		_, err = tx.ExecContext(ctx,
-			`UPDATE posts SET likes = likes + 1 WHERE id = ?`,
-			postID)
-		if err != nil {
-			return err
-		}
-	} else if err == nil && existingLike != nil {
-		if *existingLike {
-			// User already liked, remove like
-			_, err = tx.ExecContext(ctx,
-				`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
-				postID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE posts SET likes = likes - 1 WHERE id = ?`,
-				postID)
-			if err != nil {
-				return err
-			}
-		} else {
-			// User disliked, change to like
-			_, err = tx.ExecContext(ctx,
-				`UPDATE post_likes SET is_like = ? WHERE post_id = ? AND user_id = ?`,
-				true, postID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE posts SET likes = likes + 1, dislikes = dislikes - 1 WHERE id = ?`,
-				postID)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return tx.Commit()
+	return r.voteOnEntity(ctx, "post_likes", "post_id", "posts", postID, userID, true)
 }
 
 func (r *Repository) DislikePost(ctx context.Context, postID, userID string) error {
-	r.mu.LockForWrite("like_operation")
-	defer r.mu.UnlockForWrite("like_operation")
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var existingLike *bool
-	err = tx.QueryRowContext(ctx,
-		`SELECT is_like from post_likes WHERE post_id = ? AND user_id = ?`,
-		postID, userID).Scan(&existingLike)
-
-	if err == sql.ErrNoRows {
-		// User hasn't liked/disliked this post yet
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO post_likes (post_id, user_id, is_like) VALUES (?, ?, ?)`,
-			postID, userID, false) // false = dislike
-		if err != nil {
-			return err
-		}
-
-		_, err = tx.ExecContext(ctx,
-			`UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?`,
-			postID)
-		if err != nil {
-			return err
-		}
-	} else if err == nil && existingLike != nil {
-		if !*existingLike {
-			// User already disliked, remove dislike
-			_, err = tx.ExecContext(ctx,
-				`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
-				postID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE posts SET dislikes = dislikes - 1 WHERE id = ?`,
-				postID)
-			if err != nil {
-				return err
-			}
-		} else {
-			// User liked, change to dislike
-			_, err = tx.ExecContext(ctx,
-				`UPDATE post_likes SET is_like = ? WHERE post_id = ? AND user_id = ?`,
-				false, postID, userID) // false = dislike
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE posts SET likes = likes - 1, dislikes = dislikes + 1 WHERE id = ?`,
-				postID)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return tx.Commit()
+	return r.voteOnEntity(ctx, "post_likes", "post_id", "posts", postID, userID, false)
 }
 
 // scanPosts reads all post rows and attaches categories to each.
@@ -525,7 +392,6 @@ func (r *Repository) FilterPosts(ctx context.Context, sortMethod string) ([]post
 		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
 		         FROM posts p ORDER BY p.dislikes DESC`
 	default:
-		// For any invalid sort method, default to newest
 		query = `SELECT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at 
 		         FROM posts p ORDER BY p.created_at DESC`
 	}
@@ -704,72 +570,16 @@ func (r *Repository) GetCommentsByAuthor(ctx context.Context, authorID string) (
 }
 
 func (r *Repository) LikeComment(ctx context.Context, commentID, userID string) error {
-	r.mu.LockForWrite("like_operation")
-	defer r.mu.UnlockForWrite("like_operation")
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var existingLike *bool
-	err = tx.QueryRowContext(ctx,
-		`SELECT is_like FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
-		commentID, userID).Scan(&existingLike)
-
-	if err == sql.ErrNoRows {
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO comment_likes (comment_id, user_id, is_like) VALUES (?, ?, ?)`,
-			commentID, userID, true)
-		if err != nil {
-			return err
-		}
-
-		_, err = tx.ExecContext(ctx,
-			`UPDATE comments SET likes = likes + 1 WHERE id = ?`,
-			commentID)
-		if err != nil {
-			return err
-		}
-	} else if err == nil && existingLike != nil {
-		if *existingLike {
-			// User already liked, remove like
-			_, err = tx.ExecContext(ctx,
-				`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
-				commentID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comments SET likes = likes - 1 WHERE id = ?`,
-				commentID)
-			if err != nil {
-				return err
-			}
-		} else {
-			// User disliked, change to like
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comment_likes SET is_like = ? WHERE comment_id = ? AND user_id = ?`,
-				true, commentID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comments SET likes = likes + 1, dislikes = dislikes - 1 WHERE id = ?`,
-				commentID)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return tx.Commit()
+	return r.voteOnEntity(ctx, "comment_likes", "comment_id", "comments", commentID, userID, true)
 }
 
 func (r *Repository) DislikeComment(ctx context.Context, commentID, userID string) error {
+	return r.voteOnEntity(ctx, "comment_likes", "comment_id", "comments", commentID, userID, false)
+}
+
+// voteOnEntity handles the lock and transaction for a like/dislike toggle.
+// table/idCol/entityTable are internal constants — not user input.
+func (r *Repository) voteOnEntity(ctx context.Context, table, idCol, entityTable, id, userID string, isLike bool) error {
 	r.mu.LockForWrite("like_operation")
 	defer r.mu.UnlockForWrite("like_operation")
 
@@ -779,61 +589,66 @@ func (r *Repository) DislikeComment(ctx context.Context, commentID, userID strin
 	}
 	defer tx.Rollback()
 
-	var existingLike *bool
-	err = tx.QueryRowContext(ctx,
-		`SELECT is_like from comment_likes WHERE comment_id = ? AND user_id = ?`,
-		commentID, userID).Scan(&existingLike)
+	if err := r.toggleVote(ctx, tx, table, idCol, entityTable, id, userID, isLike); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) toggleVote(ctx context.Context, tx *sql.Tx, table, idCol, entityTable, id, userID string, isLike bool) error {
+	var existing *bool
+	err := tx.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT is_like FROM %s WHERE %s = ? AND user_id = ?`, table, idCol),
+		id, userID).Scan(&existing)
+
+	addCol := voteCol(isLike)
+	removeCol := voteCol(!isLike)
 
 	if err == sql.ErrNoRows {
-		// User hasn't liked/disliked this post yet
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO comment_likes (comment_id, user_id, is_like) VALUES (?, ?, ?)`,
-			commentID, userID, false) // false = dislike
-		if err != nil {
+		if _, err = tx.ExecContext(ctx,
+			fmt.Sprintf(`INSERT INTO %s (%s, user_id, is_like) VALUES (?, ?, ?)`, table, idCol),
+			id, userID, isLike); err != nil {
 			return err
 		}
-
 		_, err = tx.ExecContext(ctx,
-			`UPDATE comments SET dislikes = dislikes + 1 WHERE id = ?`,
-			commentID)
-		if err != nil {
-			return err
-		}
-	} else if err == nil && existingLike != nil {
-		if !*existingLike {
-			// User already disliked, remove dislike
-			_, err = tx.ExecContext(ctx,
-				`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
-				commentID, userID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comments SET dislikes = dislikes - 1 WHERE id = ?`,
-				commentID)
-			if err != nil {
-				return err
-			}
-		} else {
-			// User liked, change to dislike
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comment_likes SET is_like = ? WHERE comment_id = ? AND user_id = ?`,
-				false, commentID, userID) // false = dislike
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.ExecContext(ctx,
-				`UPDATE comments SET likes = likes - 1, dislikes = dislikes + 1 WHERE id = ?`,
-				commentID)
-			if err != nil {
-				return err
-			}
-		}
+			fmt.Sprintf(`UPDATE %s SET %s = %s + 1 WHERE id = ?`, entityTable, addCol, addCol),
+			id)
+		return err
+	}
+	if err != nil || existing == nil {
+		return err
 	}
 
-	return tx.Commit()
+	if *existing == isLike {
+		// same vote: remove it
+		if _, err = tx.ExecContext(ctx,
+			fmt.Sprintf(`DELETE FROM %s WHERE %s = ? AND user_id = ?`, table, idCol),
+			id, userID); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE %s SET %s = %s - 1 WHERE id = ?`, entityTable, addCol, addCol),
+			id)
+		return err
+	}
+
+	// opposite vote: flip it
+	if _, err = tx.ExecContext(ctx,
+		fmt.Sprintf(`UPDATE %s SET is_like = ? WHERE %s = ? AND user_id = ?`, table, idCol),
+		isLike, id, userID); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx,
+		fmt.Sprintf(`UPDATE %s SET %s = %s + 1, %s = %s - 1 WHERE id = ?`, entityTable, addCol, addCol, removeCol, removeCol),
+		id)
+	return err
+}
+
+func voteCol(isLike bool) string {
+	if isLike {
+		return "likes"
+	}
+	return "dislikes"
 }
 
 func (r *Repository) UpdateComment(ctx context.Context, id, authorID, content string) error {
@@ -859,6 +674,14 @@ func (r *Repository) UpdateComment(ctx context.Context, id, authorID, content st
 	return nil
 }
 
+func inPlaceholders(n int) string {
+	ph := make([]string, n)
+	for i := range ph {
+		ph[i] = "?"
+	}
+	return strings.Join(ph, ",")
+}
+
 func (r *Repository) GetCommentVotesByUserForComments(ctx context.Context, userID string, commentIDs []string) (map[string]bool, error) {
 	result := make(map[string]bool)
 	if len(commentIDs) == 0 {
@@ -868,14 +691,12 @@ func (r *Repository) GetCommentVotesByUserForComments(ctx context.Context, userI
 	r.mu.LockForRead("like_operation")
 	defer r.mu.UnlockForRead("like_operation")
 
-	placeholders := make([]string, len(commentIDs))
 	args := make([]any, 0, len(commentIDs)+1)
 	args = append(args, userID)
-	for i := range commentIDs {
-		placeholders[i] = "?"
-		args = append(args, commentIDs[i])
+	for _, id := range commentIDs {
+		args = append(args, id)
 	}
-	query := `SELECT comment_id, is_like FROM comment_likes WHERE user_id = ? AND comment_id IN (` + strings.Join(placeholders, ",") + `)`
+	query := `SELECT comment_id, is_like FROM comment_likes WHERE user_id = ? AND comment_id IN (` + inPlaceholders(len(commentIDs)) + `)`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {

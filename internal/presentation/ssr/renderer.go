@@ -28,6 +28,11 @@ type DataRequest struct {
 }
 
 func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		rt.renderError(w, r, http.StatusNotFound, "Page not found")
+		return
+	}
+
 	sortMethod := r.URL.Query().Get("sort")
 	if sortMethod == "" {
 		sortMethod = "newest" // default sort
@@ -43,7 +48,8 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		log.Printf("Home: load posts: %v", err)
+		rt.renderError(w, r, http.StatusInternalServerError, "Failed to load posts")
 		return
 	}
 
@@ -94,7 +100,7 @@ func (rt *Renderer) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 		email := r.Form.Get("email")
@@ -112,7 +118,7 @@ func (rt *Renderer) SignUp(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
@@ -125,7 +131,7 @@ func (rt *Renderer) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 		identifier := r.Form.Get("email")
@@ -148,11 +154,15 @@ func (rt *Renderer) Login(w http.ResponseWriter, r *http.Request) {
 		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
 func (rt *Renderer) Logout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie("session_id"); err == nil {
+		rt.s.Logout(r.Context(), c.Value)
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    "",
@@ -180,7 +190,7 @@ func (rt *Renderer) NewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 		title := r.Form.Get("title")
@@ -205,7 +215,7 @@ func (rt *Renderer) NewPost(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Redirect(w, r, "/posts/"+resp.ID, http.StatusSeeOther)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
@@ -227,7 +237,7 @@ func (rt *Renderer) Settings(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 
@@ -287,7 +297,7 @@ func (rt *Renderer) Settings(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/settings?success=1", http.StatusSeeOther)
 		return
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
@@ -300,17 +310,18 @@ func (rt *Renderer) DeletePost(w http.ResponseWriter, r *http.Request) {
 
 	postID, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
 	p, err := rt.s.GetPostByID(r.Context(), postID)
 	if err != nil || (p.AuthorID != user.ID && !user.IsAdmin) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to delete this post")
 		return
 	}
 	if err := rt.s.DeletePost(r.Context(), postID); err != nil {
-		http.Error(w, "failed to delete post", http.StatusInternalServerError)
+		log.Printf("DeletePost %s: %v", postID, err)
+		rt.renderError(w, r, http.StatusInternalServerError, "Failed to delete post")
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -320,18 +331,19 @@ func (rt *Renderer) PostDetail(w http.ResponseWriter, r *http.Request) {
 	user := rt.currentUser(w, r)
 	postID, ok := rt.pathPart(r, 2) // /posts/{id}
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
 	p, err := rt.s.GetPostByID(r.Context(), postID)
 	if err != nil {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 	comments, err := rt.s.GetCommentsByPost(r.Context(), postID)
 	if err != nil {
-		http.Error(w, "failed to load comments", http.StatusInternalServerError)
+		log.Printf("PostDetail %s: load comments: %v", postID, err)
+		rt.renderError(w, r, http.StatusInternalServerError, "Failed to load comments")
 		return
 	}
 
@@ -384,7 +396,7 @@ func (rt *Renderer) LikePost(w http.ResponseWriter, r *http.Request) {
 
 	postID, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
@@ -403,7 +415,7 @@ func (rt *Renderer) DislikePost(w http.ResponseWriter, r *http.Request) {
 
 	postID, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
@@ -416,7 +428,7 @@ func (rt *Renderer) DislikePost(w http.ResponseWriter, r *http.Request) {
 func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	postID, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
@@ -428,12 +440,12 @@ func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := rt.s.GetPostByID(r.Context(), postID)
 	if err != nil {
-		http.Error(w, "post not found", http.StatusNotFound)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 
 	if post.AuthorID != user.ID && !user.IsAdmin {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to edit this post")
 		return
 	}
 
@@ -445,7 +457,7 @@ func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 
@@ -477,7 +489,7 @@ func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 
 		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
@@ -488,13 +500,13 @@ func (rt *Renderer) CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+		rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 		return
 	}
 
 	postID, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Post not found")
 		return
 	}
 	content := r.Form.Get("content")
@@ -519,17 +531,18 @@ func (rt *Renderer) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	postID, ok1 := rt.pathPart(r, 2)
 	commentID, ok2 := rt.pathPart(r, 4)
 	if !ok1 || !ok2 {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Comment not found")
 		return
 	}
 
 	c, err := rt.s.GetCommentByID(r.Context(), commentID)
 	if err != nil || (c.AuthorID != user.ID && !user.IsAdmin) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to delete this comment")
 		return
 	}
 	if err := rt.s.DeleteComment(r.Context(), commentID); err != nil {
-		http.Error(w, "failed to delete comment", http.StatusInternalServerError)
+		log.Printf("DeleteComment %s: %v", commentID, err)
+		rt.renderError(w, r, http.StatusInternalServerError, "Failed to delete comment")
 		return
 	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
@@ -545,7 +558,7 @@ func (rt *Renderer) LikeComment(w http.ResponseWriter, r *http.Request) {
 	postID, ok1 := rt.pathPart(r, 2)
 	commentID, ok2 := rt.pathPart(r, 4) // /posts/{id}/comments/{commentId}/like
 	if !ok1 || !ok2 {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Comment not found")
 		return
 	}
 
@@ -565,7 +578,7 @@ func (rt *Renderer) DislikeComment(w http.ResponseWriter, r *http.Request) {
 	postID, ok1 := rt.pathPart(r, 2)
 	commentID, ok2 := rt.pathPart(r, 4)
 	if !ok1 || !ok2 {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Comment not found")
 		return
 	}
 
@@ -585,13 +598,13 @@ func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
 	postID, ok1 := rt.pathPart(r, 2)
 	commentID, ok2 := rt.pathPart(r, 4) // /posts/{id}/comments/{commentId}/edit
 	if !ok1 || !ok2 {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "Comment not found")
 		return
 	}
 
 	c, err := rt.s.GetCommentByID(r.Context(), commentID)
 	if err != nil || (c.AuthorID != user.ID && !user.IsAdmin) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to edit this comment")
 		return
 	}
 
@@ -604,7 +617,7 @@ func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
+			rt.renderError(w, r, http.StatusBadRequest, "Could not parse form")
 			return
 		}
 		content := r.Form.Get("content")
@@ -620,7 +633,7 @@ func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		rt.renderError(w, r, http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
@@ -644,6 +657,7 @@ func (rt *Renderer) currentUser(w http.ResponseWriter, r *http.Request) *account
 	return &u
 }
 
+
 func (rt *Renderer) pathPart(r *http.Request, pos int) (string, bool) {
 	parts := strings.Split(r.URL.Path, "/")
 	if pos < 0 || pos >= len(parts) || parts[pos] == "" {
@@ -652,10 +666,54 @@ func (rt *Renderer) pathPart(r *http.Request, pos int) (string, bool) {
 	return parts[pos], true
 }
 
+func (rt *Renderer) renderError(w http.ResponseWriter, r *http.Request, code int, message string) {
+	var user *account.Account
+	if c, err := r.Cookie("session_id"); err == nil {
+		if u, err := rt.s.GetUserFromSession(r.Context(), c.Value); err == nil {
+			user = &u
+		}
+	}
+
+	title := errorTitle(code)
+
+	var buf bytes.Buffer
+	err := rt.tmpl.ExecuteTemplate(&buf, "error.html", map[string]any{
+		"User":    user,
+		"Code":    code,
+		"Title":   title,
+		"Message": message,
+	})
+	if err != nil {
+		http.Error(w, message, code)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	_, _ = buf.WriteTo(w)
+}
+
+func errorTitle(code int) string {
+	switch code {
+	case http.StatusBadRequest:
+		return "Bad Request"
+	case http.StatusUnauthorized:
+		return "Unauthorized"
+	case http.StatusForbidden:
+		return "Forbidden"
+	case http.StatusNotFound:
+		return "Not Found"
+	case http.StatusMethodNotAllowed:
+		return "Method Not Allowed"
+	default:
+		return "Something Went Wrong"
+	}
+}
+
 func (rt *Renderer) renderTemplate(w http.ResponseWriter, name string, data any) {
 	var buf bytes.Buffer
 	if err := rt.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
-		http.Error(w, "Template error"+err.Error(), http.StatusInternalServerError)
+		log.Printf("template error (%s): %v", name, err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -667,7 +725,7 @@ func (rt *Renderer) UserPage(w http.ResponseWriter, r *http.Request) {
 	// URL: /users/{username}
 	username, ok := rt.pathPart(r, 2)
 	if !ok {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -678,7 +736,7 @@ func (rt *Renderer) UserPage(w http.ResponseWriter, r *http.Request) {
 
 	acct, err := rt.s.GetAccountByUsername(r.Context(), username)
 	if err != nil {
-		http.NotFound(w, r)
+		rt.renderError(w, r, http.StatusNotFound, "User not found")
 		return
 	}
 

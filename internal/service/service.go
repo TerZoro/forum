@@ -23,6 +23,15 @@ var ErrValidation = errors.New("validation error")
 // failed authentication (wrong email/password).
 var ErrCredentials = errors.New("invalid credentials")
 
+// valErr wraps ErrValidation so errors.Is works, but Error() returns only
+// the user-facing message with no "validation error: " prefix.
+type valErr struct{ msg string }
+
+func (e *valErr) Error() string { return e.msg }
+func (e *valErr) Unwrap() error { return ErrValidation }
+
+func validationError(msg string) error { return &valErr{msg: msg} }
+
 type Repository interface {
 	SignUp(ctx context.Context, a account.Account) (string, error)
 
@@ -81,21 +90,21 @@ type SignUpResponse struct {
 
 func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse, error) {
 	if req.Email == "" {
-		return SignUpResponse{}, fmt.Errorf("%w: email is required", ErrValidation)
+		return SignUpResponse{}, validationError("Email is required")
 	}
 	if !looksLikeEmail(req.Email) {
-		return SignUpResponse{}, fmt.Errorf("%w: invalid email format", ErrValidation)
+		return SignUpResponse{}, validationError("Invalid email format")
 	}
 	if req.Username == "" {
-		return SignUpResponse{}, fmt.Errorf("%w: username is required", ErrValidation)
+		return SignUpResponse{}, validationError("Username is required")
 	}
 	if err := validatePasswordStrength(req.Password); err != nil {
-		return SignUpResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
+		return SignUpResponse{}, validationError(err.Error())
 	}
 
 	a, err := account.New(req.Email, req.Username, req.Password)
 	if err != nil {
-		return SignUpResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
+		return SignUpResponse{}, validationError(err.Error())
 	}
 
 	count, err := s.repo.GetAccountsCount(ctx)
@@ -105,6 +114,12 @@ func (s *Service) SignUp(ctx context.Context, req SignUpRequest) (SignUpResponse
 
 	id, err := s.repo.SignUp(ctx, a)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: accounts.email") {
+			return SignUpResponse{}, validationError("Email already in use")
+		}
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: accounts.username") {
+			return SignUpResponse{}, validationError("Username already taken")
+		}
 		return SignUpResponse{}, err
 	}
 
@@ -180,14 +195,6 @@ type UpdateAccountRequest struct {
 	CurrentPassword string
 }
 
-type UpdateUserResponse struct {
-	ID        string
-	Email     string
-	Password  string
-	Username  string
-	SessionID string
-}
-
 func (s *Service) UpdateAccount(ctx context.Context, userID string, req UpdateAccountRequest) error {
 	a, err := s.repo.GetAccountByID(ctx, userID)
 	if err != nil {
@@ -218,10 +225,7 @@ func (s *Service) UpdateAccount(ctx context.Context, userID string, req UpdateAc
 		if err := validatePasswordStrength(p); err != nil {
 			return err
 		}
-		// hash via domain helper by reusing bcrypt directly here to avoid changing Account API
-		// but to keep layering clean we can rely on account.New hashing; however it creates new ID.
-		// So we hash here:
-		hashed, herr := bcryptGenerate(p)
+		hashed, herr := hashPassword(p)
 		if herr != nil {
 			return herr
 		}
@@ -244,13 +248,6 @@ func (s *Service) UpdateAccount(ctx context.Context, userID string, req UpdateAc
 	return nil
 }
 
-// small wrapper for hashing password to keep UpdateAccount focused
-func bcryptGenerate(pw string) (string, error) {
-	// import within file scope
-	return hashPassword(pw)
-}
-
-// hashPassword isolates bcrypt to ease future changes
 func hashPassword(pw string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(pw), 14)
 	if err != nil {
@@ -360,7 +357,7 @@ type CreateCommentResponse struct {
 func (s *Service) CreateComment(ctx context.Context, req CreateCommentRequest, userID string) (CreateCommentResponse, error) {
 	c, err := comment.New(req.Content, req.PostID, userID)
 	if err != nil {
-		return CreateCommentResponse{}, fmt.Errorf("%w: %s", ErrValidation, err)
+		return CreateCommentResponse{}, validationError(err.Error())
 	}
 
 	err = s.repo.CreateComment(ctx, c)
@@ -382,7 +379,7 @@ type UpdateCommentRequest struct {
 func (s *Service) UpdateComment(ctx context.Context, commentID string, req UpdateCommentRequest, userID string) error {
 	req.Content = strings.TrimSpace(req.Content)
 	if req.Content == "" {
-		return fmt.Errorf("%w: content cannot be empty", ErrValidation)
+		return validationError("Content cannot be empty")
 	}
 
 	err := s.repo.UpdateComment(ctx, commentID, userID, req.Content)
