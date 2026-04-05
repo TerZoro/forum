@@ -17,13 +17,13 @@ func New(userID string, duration time.Duration) Session {
 	return Session{
 		ID:        uuid.New().String(),
 		UserID:    userID,
-		ExpiresAt: time.Now().Add(duration),
-		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().UTC().Add(duration),
+		CreatedAt: time.Now().UTC(),
 	}
 }
 
 func (s *Session) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt)
+	return time.Now().UTC().After(s.ExpiresAt)
 }
 
 func (s *Session) GetID() string {

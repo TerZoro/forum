@@ -18,10 +18,10 @@
                         <div class="post-meta">
                             <span>By {{with index .Authors .Post.AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.Post.AuthorID}}{{end}}</span>
                             <span>•</span>
-                            <span>{{.Post.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
+                            <span data-utc="{{.Post.CreatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.Post.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
                             {{if .Post.UpdatedAt.After .Post.CreatedAt}}
                             <span>•</span>
-                            <span>Updated {{.Post.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                            <span>Updated <span data-utc="{{.Post.UpdatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.Post.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span></span>
                             {{end}}
                             {{if .Post.Categories}}
                                 <span>•</span>
@@ -42,8 +42,10 @@
                             <form method="POST" action="/posts/{{.Post.ID}}/dislike" class="inline">
                                 <button type="submit" class="btn btn-dislike btn-sm {{if eq .PostVote "dislike"}}is-active{{end}}" data-dislike-id="{{.Post.ID}}"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Post.Dislikes}}</button>
                             </form>
-                            {{if and .User (or (eq .Post.AuthorID .User.ID) .User.IsAdmin)}}
+                            {{if and .User (eq .Post.AuthorID .User.ID)}}
                                 <a href="/posts/{{.Post.ID}}/edit" class="btn btn-success">Edit Post</a>
+                            {{end}}
+                            {{if and .User (or (eq .Post.AuthorID .User.ID) .User.IsAdmin)}}
                                 <form method="POST" action="/posts/{{.Post.ID}}/delete" class="inline" onsubmit="return confirm('Are you sure you want to delete this post?')">
                                     <button type="submit" class="btn btn-danger">Delete Post</button>
                                 </form>
@@ -73,7 +75,7 @@
                                         <div class="comment-meta">
                                             <strong>{{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</strong>
                                             <span>•</span>
-                                            <span>{{.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
+                                            <span data-utc="{{.CreatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.CreatedAt.Format "Jan 02, 2006 at 15:04"}}</span>
                                         </div>
                                         <div class="comment-content"> {{- .Content -}} </div>
                                         <div class="comment-actions">
@@ -83,8 +85,10 @@
                                             <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/dislike" class="inline">
                                                 <button type="submit" class="btn btn-dislike btn-sm {{with index $.CommentVotes .ID}}{{if eq . "dislike"}}is-active{{end}}{{end}}" data-dislike-comment-id="{{.ID}}"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> {{.Dislikes}}</button>
                                             </form>
-                                            {{if and $.User (or (eq .AuthorID $.User.ID) $.User.IsAdmin)}}
+                                            {{if and $.User (eq .AuthorID $.User.ID)}}
                                                 <a href="/posts/{{$.Post.ID}}/comments/{{.ID}}/edit" class="btn btn-success btn-sm">Edit</a>
+                                            {{end}}
+                                            {{if and $.User (or (eq .AuthorID $.User.ID) $.User.IsAdmin)}}
                                                 <form method="POST" action="/posts/{{$.Post.ID}}/comments/{{.ID}}/delete" class="inline" onsubmit="return confirm('Are you sure you want to delete this comment?')">
                                                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                                                 </form>
@@ -108,5 +112,6 @@
         </div>
     </main>
     <script src="/static/js/filter.js"></script>
+    <script src="/static/js/time.js"></script>
 </body>
 </html>

@@ -38,8 +38,8 @@ func New(content, postID, authorID string) (Comment, error) {
 		AuthorID:  authorID,
 		Likes:     0,
 		Dislikes:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}, nil
 }
 
@@ -49,7 +49,7 @@ func (c *Comment) UpdateContent(content string) error {
 		return errors.New("content cannot be empty")
 	}
 	c.Content = content
-	c.UpdatedAt = time.Now()
+	c.UpdatedAt = time.Now().UTC()
 	return nil
 }
 

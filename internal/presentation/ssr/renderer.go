@@ -444,7 +444,7 @@ func (rt *Renderer) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if post.AuthorID != user.ID && !user.IsAdmin {
+	if post.AuthorID != user.ID {
 		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to edit this post")
 		return
 	}
@@ -603,7 +603,7 @@ func (rt *Renderer) UpdateComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c, err := rt.s.GetCommentByID(r.Context(), commentID)
-	if err != nil || (c.AuthorID != user.ID && !user.IsAdmin) {
+	if err != nil || c.AuthorID != user.ID {
 		rt.renderError(w, r, http.StatusForbidden, "You don't have permission to edit this comment")
 		return
 	}

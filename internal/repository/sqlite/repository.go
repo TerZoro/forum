@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"forum/internal/domain/account"
+	"time"
 	"forum/internal/domain/comment"
 	"forum/internal/domain/post"
 	"forum/internal/domain/session"
@@ -416,9 +417,9 @@ func (r *Repository) UpdatePost(ctx context.Context, postID, authorID, newTitle,
 	defer tx.Rollback()
 
 	result, err := tx.ExecContext(ctx,
-		`UPDATE posts SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP 
+		`UPDATE posts SET title = ?, content = ?, updated_at = ?
 		 WHERE id = ? AND author_id = ?`,
-		newTitle, newContent, postID, authorID)
+		newTitle, newContent, time.Now().UTC(), postID, authorID)
 	if err != nil {
 		return err
 	}
@@ -656,9 +657,9 @@ func (r *Repository) UpdateComment(ctx context.Context, id, authorID, content st
 	defer r.mu.UnlockForWrite("comment_write")
 
 	result, err := r.db.ExecContext(ctx,
-		`UPDATE comments SET content = ?, updated_at = CURRENT_TIMESTAMP 
+		`UPDATE comments SET content = ?, updated_at = ?
 		 WHERE id = ? AND author_id = ?`,
-		content, id, authorID)
+		content, time.Now().UTC(), id, authorID)
 	if err != nil {
 		return err
 	}

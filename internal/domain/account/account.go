@@ -38,7 +38,7 @@ func New(email, name, password string) (Account, error) {
 		Email:    email,
 		Username: name,
 		Password: string(bytes),
-		CreateAt: time.Now(),
+		CreateAt: time.Now().UTC(),
 		IsAdmin:  false,
 	}, nil
 }

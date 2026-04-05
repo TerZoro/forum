@@ -16,7 +16,7 @@
 
                 <div class="card p-1 mb-2">
                     <h2 class="mb-1">{{.Profile.Username}} {{if .Profile.IsAdmin}}<span class="chip">Admin</span>{{end}}</h2>
-                    <div class="post-meta">Joined {{.Profile.CreateAt.Format "Jan 02, 2006"}}</div>
+                    <div class="post-meta">Joined <span data-utc="{{.Profile.CreateAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="date">{{.Profile.CreateAt.Format "Jan 02, 2006"}}</span></div>
                     {{if and .User (eq .User.ID .Profile.ID)}}
                         <div>Email: {{.Profile.Email}}</div>
                     <div class="mt-1">
@@ -39,10 +39,10 @@
                                     <div class="post-meta">
                                         <span>By {{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</span>
                                         <span>•</span>
-                                        <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                                        <span data-utc="{{.CreatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                                         {{if .UpdatedAt.After .CreatedAt}}
                                         <span>•</span>
-                                        <span>Updated {{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                        <span>Updated <span data-utc="{{.UpdatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span></span>
                                         {{end}}
                                         <span>•</span>
                                         <span>{{len .Categories}} categories</span>
@@ -85,7 +85,7 @@
                                         <span>On post <a href="/posts/{{.PostID}}#comment-{{.ID}}" class="link-user">{{if $p.Title}}{{$p.Title}}{{else}}{{.PostID}}{{end}}</a></span>
                                         <span>by {{with index $.Authors $p.AuthorID}}{{.}}{{else}}{{$p.AuthorID}}{{end}}</span>
                                         <span>•</span>
-                                        <span>{{.CreatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                        <span data-utc="{{.CreatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.CreatedAt.Format "Jan 02, 2006 15:04"}}</span>
                                     </div>
                                     <div class="post-content">{{.Content}}</div>
                                 </article>
@@ -98,5 +98,6 @@
             </div>
         </div>
     </main>
+    <script src="/static/js/time.js"></script>
 </body>
 </html>

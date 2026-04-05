@@ -43,10 +43,10 @@
                                 <div class="post-meta">
                                     <span>By {{with index $.Authors .AuthorID}}<a href="/users/{{.}}" class="link-user">{{.}}</a>{{else}}{{.AuthorID}}{{end}}</span>
                                     <span>•</span>
-                                    <span>{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                                    <span data-utc="{{.CreatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                                     {{if .UpdatedAt.After .CreatedAt}}
                                     <span>•</span>
-                                    <span>Updated {{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span>
+                                    <span>Updated <span data-utc="{{.UpdatedAt.UTC.Format "2006-01-02T15:04:05Z07:00"}}" data-fmt="datetime">{{.UpdatedAt.Format "Jan 02, 2006 15:04"}}</span></span>
                                     {{end}}
                                     <span>•</span>
                                     <span>{{len .Categories}} categories</span>
@@ -88,5 +88,6 @@
     </main>
     
     <script src="/static/js/filter.js"></script>
+    <script src="/static/js/time.js"></script>
 </body>
 </html> 

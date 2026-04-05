@@ -41,8 +41,8 @@ func New(title, content, authorID string, categories []string) (Post, error) {
 		Categories: categories,
 		Likes:      0,
 		Dislikes:   0,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}, nil
 }
 
@@ -52,7 +52,7 @@ func (p *Post) UpdateContent(content string) error {
 		return errors.New("content cannot be empty")
 	}
 	p.Content = content
-	p.UpdatedAt = time.Now()
+	p.UpdatedAt = time.Now().UTC()
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (p *Post) UpdateTitle(title string) error {
 		return errors.New("title cannot be empty")
 	}
 	p.Title = title
-	p.UpdatedAt = time.Now()
+	p.UpdatedAt = time.Now().UTC()
 	return nil
 }
 
