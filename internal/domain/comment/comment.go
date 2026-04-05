@@ -43,32 +43,3 @@ func New(content, postID, authorID string) (Comment, error) {
 	}, nil
 }
 
-func (c *Comment) UpdateContent(content string) error {
-	content = strings.TrimSpace(content)
-	if content == "" {
-		return errors.New("content cannot be empty")
-	}
-	c.Content = content
-	c.UpdatedAt = time.Now().UTC()
-	return nil
-}
-
-func (c *Comment) AddLike() {
-	c.Likes++
-}
-
-func (c *Comment) RemoveLike() {
-	if c.Likes > 0 {
-		c.Likes--
-	}
-}
-
-func (c *Comment) AddDislike() {
-	c.Dislikes++
-}
-
-func (c *Comment) RemoveDislike() {
-	if c.Dislikes > 0 {
-		c.Dislikes--
-	}
-}

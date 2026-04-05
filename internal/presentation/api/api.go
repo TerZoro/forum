@@ -10,11 +10,12 @@ import (
 )
 
 type API struct {
-	s *service.Service
+	s      *service.Service
+	secure bool
 }
 
-func New(s *service.Service) *API {
-	return &API{s: s}
+func New(s *service.Service, secure bool) *API {
+	return &API{s: s, secure: secure}
 }
 
 // view model
@@ -95,6 +96,7 @@ func (rt *API) Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		MaxAge:   86400,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   rt.secure,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -121,6 +123,7 @@ func (rt *API) Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		MaxAge:   -1,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   rt.secure,
 	})
 
 	w.WriteHeader(http.StatusOK)

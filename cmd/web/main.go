@@ -16,6 +16,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
@@ -46,8 +55,10 @@ func main() {
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	log.Println("Templates loaded successfully")
 
-	restAPI := api.New(s)
-	htmlRender := ssr.New(s, tmpl)
+	secureCookies := os.Getenv("SECURE_COOKIES") == "true"
+
+	restAPI := api.New(s, secureCookies)
+	htmlRender := ssr.New(s, tmpl, secureCookies)
 
 	mux := http.NewServeMux()
 
@@ -119,7 +130,7 @@ func main() {
 
 	restServer := http.Server{
 		Addr:    ":8080",
-		Handler: mux,
+		Handler: securityHeaders(mux),
 	}
 
 	log.Printf("Starting server on port :8080...")

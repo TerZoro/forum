@@ -12,12 +12,13 @@ import (
 )
 
 type Renderer struct {
-	s    *service.Service
-	tmpl *template.Template
+	s      *service.Service
+	tmpl   *template.Template
+	secure bool
 }
 
-func New(s *service.Service, tmp *template.Template) *Renderer {
-	return &Renderer{s: s, tmpl: tmp}
+func New(s *service.Service, tmp *template.Template, secure bool) *Renderer {
+	return &Renderer{s: s, tmpl: tmp, secure: secure}
 }
 
 type DataRequest struct {
@@ -66,6 +67,7 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 				MaxAge:   -1,
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
+			Secure:   rt.secure,
 			})
 		}
 	}
@@ -151,6 +153,7 @@ func (rt *Renderer) Login(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name: "session_id", Value: resp.SessionID, Path: "/", HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
+			Secure:   rt.secure,
 		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	default:
@@ -289,6 +292,7 @@ func (rt *Renderer) Settings(w http.ResponseWriter, r *http.Request) {
 				MaxAge:   -1,
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
+			Secure:   rt.secure,
 			})
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -652,6 +656,7 @@ func (rt *Renderer) currentUser(w http.ResponseWriter, r *http.Request) *account
 			MaxAge:   -1,
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
+			Secure:   rt.secure,
 		})
 		return nil
 	}
