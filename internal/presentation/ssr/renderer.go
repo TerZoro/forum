@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -520,7 +521,7 @@ func (rt *Renderer) CreateComment(w http.ResponseWriter, r *http.Request) {
 		Content: content, PostID: postID,
 	}, user.ID)
 	if err != nil {
-		http.Redirect(w, r, "/posts/"+postID+"?comment_error="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/posts/"+postID+"?comment_error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/posts/"+postID, http.StatusSeeOther)
