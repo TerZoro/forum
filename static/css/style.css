@@ -162,10 +162,12 @@ body {
 .post-content {
     margin-bottom: 1rem;
     white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .comment-content {
     white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .post-actions {
