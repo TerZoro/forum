@@ -305,8 +305,8 @@ func (s *Service) UpdatePost(ctx context.Context, postID string, req UpdatePostR
 	if req.Title == "" {
 		return errors.New("title cannot be empty")
 	}
-	if len(req.Title) > 200 {
-		return errors.New("title must be 200 characters or fewer")
+	if len(req.Title) > 70 {
+		return errors.New("title must be 70 characters or fewer")
 	}
 	if req.Content == "" {
 		return errors.New("content cannot be empty")
