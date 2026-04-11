@@ -27,7 +27,7 @@
                                 <span>•</span>
                                 <span>
                                     {{range .Post.Categories}}
-                                        <span class="chip">{{.}}</span>
+                                        <a href="/?category={{.}}" class="chip">{{.}}</a>
                                     {{end}}
                                 </span>
                             {{end}}

@@ -46,6 +46,7 @@ type Repository interface {
 	DeletePost(ctx context.Context, postID string) error
 	GetPosts(ctx context.Context) ([]post.Post, error)
 	FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error)
+	FilterPostsByCategory(ctx context.Context, category string) ([]post.Post, error)
 	GetPostByID(ctx context.Context, postID string) (post.Post, error)
 	LikePost(ctx context.Context, postID, userID string) error
 	DislikePost(ctx context.Context, postID, userID string) error
@@ -168,7 +169,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		return LoginResponse{}, fmt.Errorf("%w", ErrCredentials)
 	}
 
-	// Create session (24 hours)
+	_ = s.repo.DeleteSessionsByUser(ctx, a.ID)
+
 	sess := session.New(a.ID, 24*time.Hour)
 	err = s.repo.CreateSession(ctx, sess)
 	if err != nil {
@@ -332,6 +334,10 @@ func (s *Service) GetPostsByAuthor(ctx context.Context, authorID string) ([]post
 
 func (s *Service) FilterPosts(ctx context.Context, sortMethod string) ([]post.Post, error) {
 	return s.repo.FilterPosts(ctx, sortMethod)
+}
+
+func (s *Service) FilterPostsByCategory(ctx context.Context, category string) ([]post.Post, error) {
+	return s.repo.FilterPostsByCategory(ctx, category)
 }
 
 func (s *Service) GetPostByID(ctx context.Context, postID string) (post.Post, error) {

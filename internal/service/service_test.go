@@ -33,30 +33,30 @@ func TestMain(m *testing.M) {
 
 type mockRepo struct {
 	// account
-	signUpErr         error
-	accountByEmail    account.Account
-	accountByEmailErr error
-	accountByID       account.Account
-	accountByIDErr    error
+	signUpErr            error
+	accountByEmail       account.Account
+	accountByEmailErr    error
+	accountByID          account.Account
+	accountByIDErr       error
 	accountByUsername    account.Account
 	accountByUsernameErr error
-	accountsCount     int
-	accountsCountErr  error
-	updateFieldsErr   error
-	delSessionsByUser error
+	accountsCount        int
+	accountsCountErr     error
+	updateFieldsErr      error
+	delSessionsByUser    error
 
 	// post
-	createPostErr  error
-	updatePostErr  error
-	postByID       post.Post
-	postByIDErr    error
-	postVote       bool
-	postVoteOK     bool
-	postVoteErr    error
+	createPostErr error
+	updatePostErr error
+	postByID      post.Post
+	postByIDErr   error
+	postVote      bool
+	postVoteOK    bool
+	postVoteErr   error
 
 	// comment
-	createCommentErr  error
-	updateCommentErr  error
+	createCommentErr error
+	updateCommentErr error
 
 	// session
 	createSessionErr error
@@ -86,13 +86,14 @@ func (m *mockRepo) UpdateAccountFields(_ context.Context, _, _, _, _ string) err
 func (m *mockRepo) DeleteSessionsByUser(_ context.Context, _ string) error {
 	return m.delSessionsByUser
 }
-func (m *mockRepo) CreatePost(_ context.Context, _ post.Post) error  { return m.createPostErr }
+func (m *mockRepo) CreatePost(_ context.Context, _ post.Post) error { return m.createPostErr }
 func (m *mockRepo) UpdatePost(_ context.Context, _, _, _, _ string, _ []string) error {
 	return m.updatePostErr
 }
-func (m *mockRepo) DeletePost(_ context.Context, _ string) error          { return nil }
-func (m *mockRepo) GetPosts(_ context.Context) ([]post.Post, error)       { return nil, nil }
-func (m *mockRepo) FilterPosts(_ context.Context, _ string) ([]post.Post, error) { return nil, nil }
+func (m *mockRepo) DeletePost(_ context.Context, _ string) error                 { return nil }
+func (m *mockRepo) GetPosts(_ context.Context) ([]post.Post, error)              { return nil, nil }
+func (m *mockRepo) FilterPosts(_ context.Context, _ string) ([]post.Post, error)         { return nil, nil }
+func (m *mockRepo) FilterPostsByCategory(_ context.Context, _ string) ([]post.Post, error) { return nil, nil }
 func (m *mockRepo) GetPostByID(_ context.Context, _ string) (post.Post, error) {
 	return m.postByID, m.postByIDErr
 }
@@ -104,9 +105,11 @@ func (m *mockRepo) GetPostVoteByUser(_ context.Context, _, _ string) (bool, bool
 func (m *mockRepo) GetPostsByAuthor(_ context.Context, _ string) ([]post.Post, error) {
 	return nil, nil
 }
-func (m *mockRepo) CreateComment(_ context.Context, _ comment.Comment) error { return m.createCommentErr }
-func (m *mockRepo) UpdateComment(_ context.Context, _, _, _ string) error    { return m.updateCommentErr }
-func (m *mockRepo) DeleteComment(_ context.Context, _ string) error          { return nil }
+func (m *mockRepo) CreateComment(_ context.Context, _ comment.Comment) error {
+	return m.createCommentErr
+}
+func (m *mockRepo) UpdateComment(_ context.Context, _, _, _ string) error { return m.updateCommentErr }
+func (m *mockRepo) DeleteComment(_ context.Context, _ string) error       { return nil }
 func (m *mockRepo) GetCommentByID(_ context.Context, _ string) (comment.Comment, error) {
 	return comment.Comment{}, nil
 }
@@ -121,12 +124,14 @@ func (m *mockRepo) GetCommentVotesByUserForComments(_ context.Context, _ string,
 func (m *mockRepo) GetCommentsByAuthor(_ context.Context, _ string) ([]comment.Comment, error) {
 	return nil, nil
 }
-func (m *mockRepo) CreateSession(_ context.Context, _ session.Session) error { return m.createSessionErr }
+func (m *mockRepo) CreateSession(_ context.Context, _ session.Session) error {
+	return m.createSessionErr
+}
 func (m *mockRepo) GetSession(_ context.Context, _ string) (session.Session, error) {
 	return m.sess, m.sessErr
 }
-func (m *mockRepo) DeleteSession(_ context.Context, _ string) error    { return m.deleteSessionErr }
-func (m *mockRepo) DeleteExpiredSessions(_ context.Context) error      { return nil }
+func (m *mockRepo) DeleteSession(_ context.Context, _ string) error { return m.deleteSessionErr }
+func (m *mockRepo) DeleteExpiredSessions(_ context.Context) error   { return nil }
 
 // ---------------------------------------------------------------------------
 // SignUp

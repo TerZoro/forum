@@ -406,6 +406,24 @@ func (r *Repository) FilterPosts(ctx context.Context, sortMethod string) ([]post
 	return r.scanPosts(ctx, rows)
 }
 
+func (r *Repository) FilterPostsByCategory(ctx context.Context, category string) ([]post.Post, error) {
+	r.mu.LockForRead("post_read")
+	defer r.mu.UnlockForRead("post_read")
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT DISTINCT p.id, p.title, p.content, p.author_id, p.likes, p.dislikes, p.created_at, p.updated_at
+		 FROM posts p
+		 JOIN post_categories pc ON p.id = pc.post_id
+		 WHERE pc.category = ?
+		 ORDER BY p.created_at DESC`, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return r.scanPosts(ctx, rows)
+}
+
 func (r *Repository) UpdatePost(ctx context.Context, postID, authorID, newTitle, newContent string, newCategories []string) error {
 	r.mu.LockForWrite("post_write")
 	defer r.mu.UnlockForWrite("post_write")

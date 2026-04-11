@@ -23,10 +23,11 @@ func New(s *service.Service, tmp *template.Template, secure bool) *Renderer {
 }
 
 type DataRequest struct {
-	Title   string
-	User    *account.Account
-	Posts   []post.Post
-	Authors map[string]string
+	Title          string
+	User           *account.Account
+	Posts          []post.Post
+	Authors        map[string]string
+	CategoryFilter string
 }
 
 func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,7 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sortMethod := r.URL.Query().Get("sort")
+	categoryFilter := r.URL.Query().Get("category")
 	if sortMethod == "" {
 		sortMethod = "newest" // default sort
 	}
@@ -43,7 +45,9 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 	var posts []post.Post
 	var err error
 
-	if sortMethod == "newest" {
+	if categoryFilter != "" {
+		posts, err = rt.s.FilterPostsByCategory(r.Context(), categoryFilter)
+	} else if sortMethod == "newest" {
 		posts, err = rt.s.GetPosts(r.Context())
 	} else {
 		posts, err = rt.s.FilterPosts(r.Context(), sortMethod)
@@ -87,10 +91,11 @@ func (rt *Renderer) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rt.renderTemplate(w, "home.html", DataRequest{
-		Title:   "Home",
-		User:    user,
-		Posts:   posts,
-		Authors: authors,
+		Title:          "Home",
+		User:           user,
+		Posts:          posts,
+		Authors:        authors,
+		CategoryFilter: categoryFilter,
 	})
 }
 

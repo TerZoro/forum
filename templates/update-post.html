@@ -41,7 +41,7 @@
                 
                 <div class="form-group">
                     <label for="categories">Categories (comma-separated):</label>
-                    <input type="text" id="categories" name="categories" maxlength="200" value="{{range $i, $cat := .Post.Categories}}{{if $i}}, {{end}}{{$cat}}{{end}}">
+                    <input type="text" id="categories" name="categories" maxlength="30" value="{{range $i, $cat := .Post.Categories}}{{if $i}}, {{end}}{{$cat}}{{end}}">
                 </div>
                 
                 <div class="form-group">

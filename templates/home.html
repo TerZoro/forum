@@ -30,6 +30,13 @@
                         <a href="/?sort=dislikes" class="btn btn-sort" data-sort="dislikes"><img src="/static/images/dislike.png" alt="Dislike" class="icon"> Most Disliked</a>
                     </div>
                 </div>
+
+                {{if .CategoryFilter}}
+                <div class="card p-1 mb-2 flex" style="justify-content: space-between; align-items: center;">
+                    <span>Filtering by category: <strong>{{.CategoryFilter}}</strong></span>
+                    <a href="/" class="btn btn-sm">Clear filter</a>
+                </div>
+                {{end}}
                 
                 <div class="posts">
                     {{if .Posts}}
@@ -65,7 +72,7 @@
                                     {{if .Categories}}
                                         <div>
                                             {{range .Categories}}
-                                                <span class="chip">{{.}}</span>
+                                                <a href="/?category={{.}}" class="chip">{{.}}</a>
                                             {{end}}
                                         </div>
                                     {{end}}
